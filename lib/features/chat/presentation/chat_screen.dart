@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pocket_ai/features/chat/models/chat_message.dart';
+import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -14,22 +16,169 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final List<Map<String, String>> _messages = []; // Stores messages
+  final List<ChatMessage> _messages = [];
+  final ChatDatabase _chatDatabase = ChatDatabase.instance;
   final TextEditingController _controller = TextEditingController();
   final LocalAiService _aiService = LocalAiService();
   final stt.SpeechToText _speech = stt.SpeechToText();
+  List<Map<String, dynamic>> _conversations = [];
+  int? _currentConversationId;
 
   bool _modelReady = false;
   bool _isLoadingModel = true;
   bool _isThinking = false;
+  bool _isHistoryReady = false;
   String _status = 'Checking for AI model...';
   String? _modelError;
-  bool isListen=false;
+  String? _historyError;
+  bool isListen = false;
 
   @override
   void initState() {
     super.initState();
+    _loadHistory();
     _initializeAI();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final conversations = await _chatDatabase.getConversations();
+      final mostRecent = conversations.isEmpty ? null : conversations.first;
+      final messages = mostRecent == null
+          ? <ChatMessage>[]
+          : await _chatDatabase.getMessages(mostRecent['id'] as int);
+
+      if (!mounted) return;
+
+      setState(() {
+        _conversations = conversations;
+        _currentConversationId = mostRecent?['id'] as int?;
+        _messages
+          ..clear()
+          ..addAll(messages);
+        _historyError = null;
+        _isHistoryReady = true;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Chat history loading error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      setState(() {
+        _historyError = 'Chat history could not be loaded. Please try again.';
+        _isHistoryReady = false;
+      });
+    }
+  }
+
+  Future<void> _refreshConversations() async {
+    final conversations = await _chatDatabase.getConversations();
+    if (!mounted) return;
+
+    setState(() {
+      _conversations = conversations;
+    });
+  }
+
+  Future<void> _selectConversation(int id) async {
+    if (_isThinking) return;
+    Navigator.of(context).pop();
+
+    try {
+      final messages = await _chatDatabase.getMessages(id);
+      if (!mounted) return;
+
+      setState(() {
+        _currentConversationId = id;
+        _messages
+          ..clear()
+          ..addAll(messages);
+        _historyError = null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Conversation loading error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('This conversation could not be loaded.');
+    }
+  }
+
+  void _startNewChat({bool closeDrawer = false}) {
+    if (_isThinking) return;
+
+    if (closeDrawer) Navigator.of(context).pop();
+    setState(() {
+      _currentConversationId = null;
+      _messages.clear();
+    });
+  }
+
+  Future<void> _deleteConversation(int id) async {
+    final conversation = _conversations.firstWhere((item) => item['id'] == id);
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete conversation?'),
+        content: Text(
+          '"${conversation['title']}" will be permanently deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !mounted) return;
+
+    try {
+      await _chatDatabase.deleteConversation(id);
+      final conversations = await _chatDatabase.getConversations();
+      if (!mounted) return;
+
+      if (_currentConversationId == id) {
+        final mostRecent = conversations.isEmpty ? null : conversations.first;
+        final messages = mostRecent == null
+            ? <ChatMessage>[]
+            : await _chatDatabase.getMessages(mostRecent['id'] as int);
+        if (!mounted) return;
+
+        setState(() {
+          _currentConversationId = mostRecent?['id'] as int?;
+          _messages
+            ..clear()
+            ..addAll(messages);
+          _conversations = conversations;
+        });
+      } else {
+        setState(() {
+          _conversations = conversations;
+        });
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Conversation deletion error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('This conversation could not be deleted.');
+    }
+  }
+
+  void _showHistoryError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _conversationTitle(String prompt) {
+    final characters = prompt.runes.toList();
+    if (characters.length <= 48) return prompt;
+    return '${String.fromCharCodes(characters.take(48))}...';
   }
 
   Future<void> _initializeAI() async {
@@ -104,45 +253,100 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     final prompt = _controller.text.trim();
 
-    // Validate before adding the user's message.
-    if (prompt.isEmpty || !_modelReady || _isThinking) {
+    if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
       return;
     }
 
+    setState(() => _isThinking = true);
+    final createdAt = DateTime.now();
+    final createdConversation = _currentConversationId == null;
+    int? conversationId = _currentConversationId;
+    late final ChatMessage userMessage;
+
+    try {
+      conversationId ??= await _chatDatabase.createConversation(
+        _conversationTitle(prompt),
+      );
+      userMessage = ChatMessage(
+        conversationId: conversationId,
+        role: 'user',
+        content: prompt,
+        createdAt: createdAt,
+      );
+      await _chatDatabase.saveMessage(userMessage);
+    } catch (error, stackTrace) {
+      debugPrint('User message persistence error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (createdConversation && conversationId != null) {
+        try {
+          await _chatDatabase.deleteConversation(conversationId);
+        } catch (cleanupError, cleanupStackTrace) {
+          debugPrint('Empty conversation cleanup error: $cleanupError');
+          debugPrintStack(stackTrace: cleanupStackTrace);
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() => _isThinking = false);
+      _showHistoryError('Your message could not be saved. Please try again.');
+      return;
+    }
+
+    final savedConversationId = conversationId;
+    if (!mounted) return;
     setState(() {
-      _messages.add({'text': prompt, 'sender': 'me'});
-
-      _isThinking = true;
+      _currentConversationId = savedConversationId;
+      _messages.add(userMessage);
     });
-
     _controller.clear();
 
     try {
-      final answer = await _aiService.ask(prompt);
-
-      if (!mounted) return;
-
-      setState(() {
-        _messages.add({'text': answer, 'sender': 'other'});
-      });
-    } catch (e, stackTrace) {
-      debugPrint('Inference error: $e');
+      await _refreshConversations();
+    } catch (error, stackTrace) {
+      debugPrint('Conversation list refresh error: $error');
       debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('Chat history could not be refreshed.');
+    }
 
-      if (!mounted) return;
+    String answer;
+    try {
+      answer = await _aiService.ask(prompt);
+    } catch (error, stackTrace) {
+      debugPrint('Inference error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      answer = 'Sorry, I could not generate a response. Please try again.';
+    }
 
-      setState(() {
-        _messages.add({
-          'text': 'Sorry, I could not generate a response. Please try again.',
-          'sender': 'other',
-        });
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isThinking = false;
-        });
-      }
+    if (!mounted) return;
+
+    final assistantMessage = ChatMessage(
+      conversationId: savedConversationId,
+      role: 'assistant',
+      content: answer,
+      createdAt: DateTime.now(),
+    );
+    try {
+      await _chatDatabase.saveMessage(assistantMessage);
+    } catch (error, stackTrace) {
+      debugPrint('Assistant message persistence error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('The response could not be saved to chat history.');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _messages.add(assistantMessage);
+      _isThinking = false;
+    });
+
+    try {
+      await _refreshConversations();
+    } catch (error, stackTrace) {
+      debugPrint('Conversation list refresh error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('Chat history could not be refreshed.');
     }
   }
 
@@ -152,7 +356,7 @@ class _ChatScreenState extends State<ChatScreen> {
         onStatus: (val) => log('onStatus: $val'),
         onError: (val) => log('onError: $val'),
       );
-      print(available);
+      debugPrint('Speech recognition available: $available');
       if (available) {
         setState(() => isListen = true);
         _speech.listen(
@@ -183,6 +387,13 @@ class _ChatScreenState extends State<ChatScreen> {
           elevation: 0,
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          actions: [
+            IconButton(
+              tooltip: 'New chat',
+              onPressed: _isThinking ? null : _startNewChat,
+              icon: const Icon(Icons.add_comment_outlined),
+            ),
+          ],
           title: Row(
             children: [
               const CircleAvatar(
@@ -215,6 +426,77 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+        drawer: Drawer(
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const DrawerHeader(
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Text(
+                      'Chat history',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add),
+                  title: const Text('New chat'),
+                  enabled: !_isThinking,
+                  onTap: _isThinking
+                      ? null
+                      : () => _startNewChat(closeDrawer: true),
+                ),
+                if (_historyError != null)
+                  ListTile(
+                    leading: const Icon(Icons.error_outline),
+                    title: Text(_historyError!),
+                    trailing: IconButton(
+                      tooltip: 'Retry loading history',
+                      onPressed: _loadHistory,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ),
+                const Divider(),
+                Expanded(
+                  child: _conversations.isEmpty
+                      ? const Center(child: Text('No conversations yet'))
+                      : ListView.builder(
+                          itemCount: _conversations.length,
+                          itemBuilder: (context, index) {
+                            final conversation = _conversations[index];
+                            final id = conversation['id'] as int;
+                            return ListTile(
+                              leading: const Icon(Icons.chat_bubble_outline),
+                              title: Text(
+                                conversation['title'] as String,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              selected: id == _currentConversationId,
+                              enabled: !_isThinking,
+                              onTap: _isThinking
+                                  ? null
+                                  : () => _selectConversation(id),
+                              trailing: IconButton(
+                                tooltip: 'Delete conversation',
+                                onPressed: _isThinking
+                                    ? null
+                                    : () => _deleteConversation(id),
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
         body: Column(
@@ -252,6 +534,35 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
+            if (_historyError != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4E5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.history_toggle_off,
+                      color: Color(0xFF9A5B00),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _historyError!,
+                        style: const TextStyle(color: Color(0xFF684000)),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadHistory,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             if (_isLoadingModel && !_modelReady)
               const Padding(
                 padding: EdgeInsets.only(top: 16),
@@ -279,7 +590,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                   }
                   final message = _messages[index];
-                  final isMe = message['sender'] == 'me';
+                  final isMe = message.role == 'user';
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
@@ -326,7 +637,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ],
                             ),
                             child: Text(
-                              message['text'] ?? '',
+                              message.content,
                               style: TextStyle(
                                 fontSize: 15,
                                 height: 1.5,
@@ -400,12 +711,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: IconButton(
                       tooltip: 'Send message',
                       icon: Icon(
-                        isListen
-                            ? Icons.mic
-                            : Icons.mic_off,
+                        isListen ? Icons.mic : Icons.mic_off,
                         color: Colors.white,
                       ),
-                     onPressed: () { _listen();},
+                      onPressed: () {
+                        _listen();
+                      },
                     ),
                   ),
                   Container(
@@ -432,7 +743,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             : Icons.arrow_upward_rounded,
                         color: Colors.white,
                       ),
-                      onPressed: (_modelReady && !_isThinking)
+                      onPressed:
+                          (_modelReady && _isHistoryReady && !_isThinking)
                           ? _sendMessage
                           : null,
                     ),
