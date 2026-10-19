@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:llama_flutter_android/llama_flutter_android.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pocket_ai/features/chat/service/think_filter.dart';
 import 'package:pocket_ai/utils/constant.dart';
 
 class LocalAiService {
@@ -93,37 +94,52 @@ class LocalAiService {
     _isLoaded = true;
   }
 
-  Future<String> ask(String prompt) async {
-    if (!_isLoaded) {
-      throw StateError('Model has not been loaded');
+  
+Stream<String> askStream(String prompt) async* {
+  if (!_isLoaded) {
+    throw StateError('Model has not been loaded');
+  }
+
+  final filter = ThinkFilter();
+
+  final tokenStream = _controller.generateChat(
+    messages: [
+      ChatMessage(
+        role: 'system',
+        content: '''
+You are Pocket AI, a helpful offline assistant.
+
+Rules:
+- Answer directly and naturally in clear English.
+- Provide only the final answer, not internal reasoning.
+- Never output <think> or </think> tags.
+- Never use placeholders such as [insert name].
+- If you know the answer, provide it directly.
+- If you do not know the answer, admit it honestly.
+- Keep answers concise unless asked for details.
+''',
+      ),
+      ChatMessage(
+        role: 'user',
+        content: prompt,
+      ),
+    ],
+    maxTokens: 256,
+    temperature: 0.3,
+  );
+
+  await for (final chunk in tokenStream) {
+    final cleaned = filter.process(chunk);
+
+    if (cleaned.isNotEmpty) {
+      yield cleaned;
     }
-
-    final response = await _controller
-        .generateChat(
-          messages: [
-            ChatMessage(
-              role: 'system',
-              content:
-                  'You are a helpful AI assistant named Pocket AI. '
-                  'Always respond in clear, natural English. '
-                  'Do not use Chinese characters unless the user '
-                  'explicitly requests Chinese. '
-                  'Reply naturally and concisely. '
-                  'Do not show your reasoning or internal thoughts. '
-                  'Use non-thinking mode. /no_think',
-            ),
-            ChatMessage(role: 'user', content: prompt),
-          ],
-          maxTokens: 50,
-          temperature: 0.7,
-        )
-        .join();
-
-    return response.replaceAll(RegExp(r'<think>\s*</think>'), '').trim();
   }
 
-  Future<void> dispose() async {
-    await _controller.dispose();
-    _isLoaded = false;
+  final remaining = filter.finish();
+
+  if (remaining.isNotEmpty) {
+    yield remaining;
   }
+}
 }

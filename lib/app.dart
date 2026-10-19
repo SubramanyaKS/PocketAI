@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/home/presentation/home_screen.dart';
+import 'package:pocket_ai/features/model/presentation/model_setup_screen.dart';
 
 class PocketAiApp extends StatelessWidget {
   const PocketAiApp({super.key});
@@ -10,7 +10,7 @@ class PocketAiApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Pocket AI',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: const HomeScreen(),
+      home: const ModelSetupScreen(),
     );
   }
 }

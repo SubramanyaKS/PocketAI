@@ -11,7 +11,7 @@ Pocket AI is a Flutter-based local AI chat app that downloads a GGUF language mo
 
 ## Overview
 
-This app uses a lightweight quantized LLM from Hugging Face and loads it with `llama_flutter_android` / llama.cpp. The first time the chat screen opens, the app checks whether the model is already present; if it is not, it downloads it and stores it locally. After that, the model is reused for subsequent prompts.
+This app uses a lightweight quantized LLM from Hugging Face and loads it with `llama_flutter_android` / llama.cpp. When the app opens, a model setup screen checks whether the model is already present; if it is not, it downloads it and stores it locally. After the model is ready, the app opens chat and reuses the local model on later launches.
 
 ## Features
 
@@ -25,7 +25,7 @@ This app uses a lightweight quantized LLM from Hugging Face and loads it with `l
 
 ## How it works
 
-1. The app checks the application support directory for a saved GGUF model.
+1. The model setup screen checks the application support directory for a saved GGUF model.
 2. If the model does not exist, it downloads it from Hugging Face.
 3. The model is validated and stored locally.
 4. The app loads the model and generates responses directly on the device.

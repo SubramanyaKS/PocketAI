@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/chat/presentation/chat_screen.dart';
+import 'package:pocket_ai/features/model/presentation/model_setup_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (context) => const ChatScreen(),
+                      builder: (context) => const ModelSetupScreen(),
                     ),
                   );
                 },

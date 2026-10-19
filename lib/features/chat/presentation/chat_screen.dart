@@ -1,7 +1,5 @@
 import 'dart:developer';
-import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/service/chat_database.dart';
@@ -9,7 +7,9 @@ import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({super.key, required this.aiService});
+
+  final LocalAiService aiService;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -19,17 +19,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<ChatMessage> _messages = [];
   final ChatDatabase _chatDatabase = ChatDatabase.instance;
   final TextEditingController _controller = TextEditingController();
-  final LocalAiService _aiService = LocalAiService();
   final stt.SpeechToText _speech = stt.SpeechToText();
   List<Map<String, dynamic>> _conversations = [];
   int? _currentConversationId;
 
-  bool _modelReady = false;
-  bool _isLoadingModel = true;
+  final bool _modelReady = true;
   bool _isThinking = false;
   bool _isHistoryReady = false;
-  String _status = 'Checking for AI model...';
-  String? _modelError;
+  final String _status = 'AI is ready';
   String? _historyError;
   bool isListen = false;
 
@@ -37,7 +34,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadHistory();
-    _initializeAI();
   }
 
   Future<void> _loadHistory() async {
@@ -181,174 +177,166 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${String.fromCharCodes(characters.take(48))}...';
   }
 
-  Future<void> _initializeAI() async {
-    if (_isLoadingModel &&
-        _modelError == null &&
-        _status != 'Checking for AI model...') {
-      return;
-    }
-
-    setState(() {
-      _isLoadingModel = true;
-      _modelError = null;
-      _status = 'Loading AI model...';
-    });
-
-    try {
-      await _aiService.loadModel(
-        onDownloadProgress: (received, total) {
-          if (!mounted) return;
-
-          setState(() {
-            if (total > 0) {
-              final percent = (received * 100 / total).clamp(0, 100).round();
-              _status = percent == 100
-                  ? 'Loading AI model...'
-                  : 'Downloading model: $percent%';
-            } else {
-              _status = 'Downloading AI model...';
-            }
-          });
-        },
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _modelReady = true;
-        _isLoadingModel = false;
-        _status = 'AI is ready';
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoadingModel = false;
-        _status = 'Model unavailable';
-        _modelError = _modelErrorMessage(e);
-      });
-
-      debugPrint('Model loading error: $e');
-    }
-  }
-
-  String _modelErrorMessage(Object error) {
-    if (error is DioException &&
-        (error.error is SocketException ||
-            error.toString().contains('Failed host lookup'))) {
-      return 'Could not reach Hugging Face. Check your internet connection '
-          'or device DNS settings, then try again.';
-    }
-
-    if (error is DioException &&
-        (error.type == DioExceptionType.connectionTimeout ||
-            error.type == DioExceptionType.receiveTimeout)) {
-      return 'The model download timed out. Check your connection and try again.';
-    }
-
-    return 'The model could not be downloaded or loaded. Check your connection '
-        'and available storage, then try again.';
-  }
-
   Future<void> _sendMessage() async {
-    final prompt = _controller.text.trim();
+  final prompt = _controller.text.trim();
 
-    if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
-      return;
+  if (prompt.isEmpty ||
+      !_modelReady ||
+      !_isHistoryReady ||
+      _isThinking) {
+    return;
+  }
+
+  setState(() => _isThinking = true);
+
+  final createdAt = DateTime.now();
+  final createdConversation = _currentConversationId == null;
+  int? conversationId = _currentConversationId;
+  late final ChatMessage userMessage;
+
+  try {
+    conversationId ??= await _chatDatabase.createConversation(
+      _conversationTitle(prompt),
+    );
+
+    userMessage = ChatMessage(
+      conversationId: conversationId,
+      role: 'user',
+      content: prompt,
+      createdAt: createdAt,
+    );
+
+    await _chatDatabase.saveMessage(userMessage);
+  } catch (error, stackTrace) {
+    debugPrint('User message persistence error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    if (createdConversation && conversationId != null) {
+      try {
+        await _chatDatabase.deleteConversation(conversationId);
+      } catch (cleanupError, cleanupStackTrace) {
+        debugPrint('Empty conversation cleanup error: $cleanupError');
+        debugPrintStack(stackTrace: cleanupStackTrace);
+      }
     }
 
-    setState(() => _isThinking = true);
-    final createdAt = DateTime.now();
-    final createdConversation = _currentConversationId == null;
-    int? conversationId = _currentConversationId;
-    late final ChatMessage userMessage;
+    if (!mounted) return;
 
-    try {
-      conversationId ??= await _chatDatabase.createConversation(
-        _conversationTitle(prompt),
-      );
-      userMessage = ChatMessage(
-        conversationId: conversationId,
-        role: 'user',
-        content: prompt,
-        createdAt: createdAt,
-      );
-      await _chatDatabase.saveMessage(userMessage);
-    } catch (error, stackTrace) {
-      debugPrint('User message persistence error: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    setState(() => _isThinking = false);
+    _showHistoryError(
+      'Your message could not be saved. Please try again.',
+    );
+    return;
+  }
 
-      if (createdConversation && conversationId != null) {
-        try {
-          await _chatDatabase.deleteConversation(conversationId);
-        } catch (cleanupError, cleanupStackTrace) {
-          debugPrint('Empty conversation cleanup error: $cleanupError');
-          debugPrintStack(stackTrace: cleanupStackTrace);
-        }
-      }
+  final savedConversationId = conversationId;
+
+  if (!mounted) return;
+
+  setState(() {
+    _currentConversationId = savedConversationId;
+    _messages.add(userMessage);
+  });
+
+  _controller.clear();
+
+  try {
+    await _refreshConversations();
+  } catch (error, stackTrace) {
+    debugPrint('Conversation list refresh error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+    _showHistoryError('Chat history could not be refreshed.');
+  }
+
+  if (!mounted) return;
+
+  // Add an empty assistant message before generating the response.
+  final assistantCreatedAt = DateTime.now();
+  final assistantMessageIndex = _messages.length;
+
+  final placeholderMessage = ChatMessage(
+    conversationId: savedConversationId,
+    role: 'assistant',
+    content: '',
+    createdAt: assistantCreatedAt,
+  );
+
+  setState(() {
+    _messages.add(placeholderMessage);
+  });
+
+  final responseBuffer = StringBuffer();
+
+  try {
+    // Receive and display each chunk as it arrives.
+    await for (final chunk in widget.aiService.askStream(prompt)) {
+      responseBuffer.write(chunk);
 
       if (!mounted) return;
 
-      setState(() => _isThinking = false);
-      _showHistoryError('Your message could not be saved. Please try again.');
-      return;
+      setState(() {
+        _messages[assistantMessageIndex] = ChatMessage(
+          conversationId: savedConversationId,
+          role: 'assistant',
+          content: responseBuffer.toString(),
+          createdAt: assistantCreatedAt,
+        );
+      });
     }
 
-    final savedConversationId = conversationId;
-    if (!mounted) return;
-    setState(() {
-      _currentConversationId = savedConversationId;
-      _messages.add(userMessage);
-    });
-    _controller.clear();
-
-    try {
-      await _refreshConversations();
-    } catch (error, stackTrace) {
-      debugPrint('Conversation list refresh error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _showHistoryError('Chat history could not be refreshed.');
+    if (responseBuffer.isEmpty) {
+      responseBuffer.write(
+        'Sorry, I could not generate a response. Please try again.',
+      );
     }
+  } catch (error, stackTrace) {
+    debugPrint('Inference error: $error');
+    debugPrintStack(stackTrace: stackTrace);
 
-    String answer;
-    try {
-      answer = await _aiService.ask(prompt);
-    } catch (error, stackTrace) {
-      debugPrint('Inference error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      answer = 'Sorry, I could not generate a response. Please try again.';
-    }
-
-    if (!mounted) return;
-
-    final assistantMessage = ChatMessage(
-      conversationId: savedConversationId,
-      role: 'assistant',
-      content: answer,
-      createdAt: DateTime.now(),
-    );
-    try {
-      await _chatDatabase.saveMessage(assistantMessage);
-    } catch (error, stackTrace) {
-      debugPrint('Assistant message persistence error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _showHistoryError('The response could not be saved to chat history.');
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _messages.add(assistantMessage);
-      _isThinking = false;
-    });
-
-    try {
-      await _refreshConversations();
-    } catch (error, stackTrace) {
-      debugPrint('Conversation list refresh error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _showHistoryError('Chat history could not be refreshed.');
+    if (responseBuffer.isEmpty) {
+      responseBuffer.write(
+        'Sorry, I could not generate a response. Please try again.',
+      );
     }
   }
+
+  if (!mounted) return;
+
+  // Save the final assistant response to the database.
+  final assistantMessage = ChatMessage(
+    conversationId: savedConversationId,
+    role: 'assistant',
+    content: responseBuffer.toString(),
+    createdAt: assistantCreatedAt,
+  );
+
+  try {
+    await _chatDatabase.saveMessage(assistantMessage);
+  } catch (error, stackTrace) {
+    debugPrint('Assistant message persistence error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    _showHistoryError(
+      'The response could not be saved to chat history.',
+    );
+  }
+
+  if (!mounted) return;
+
+  setState(() {
+    _messages[assistantMessageIndex] = assistantMessage;
+    _isThinking = false;
+  });
+
+  try {
+    await _refreshConversations();
+  } catch (error, stackTrace) {
+    debugPrint('Conversation list refresh error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    _showHistoryError('Chat history could not be refreshed.');
+  }
+}
 
   void _listen() async {
     if (!isListen) {
@@ -373,7 +361,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _aiService.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -501,39 +488,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         body: Column(
           children: [
-            if (_modelError != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4E5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.wifi_off_rounded,
-                      color: Color(0xFF9A5B00),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _modelError!,
-                        style: const TextStyle(
-                          color: Color(0xFF684000),
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: _isLoadingModel ? null : _initializeAI,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
             if (_historyError != null)
               Container(
                 width: double.infinity,
@@ -562,11 +516,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ],
                 ),
-              ),
-            if (_isLoadingModel && !_modelReady)
-              const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: LinearProgressIndicator(),
               ),
             // Messages list
             Expanded(
@@ -678,47 +627,30 @@ class _ChatScreenState extends State<ChatScreen> {
                         minLines: 1,
                         maxLines: 5,
                         textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Message Pocket AI...',
                           hintStyle: TextStyle(color: Color(0xFF9299A8)),
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 20,
-                            vertical: 13,
+                            vertical: 10,
                           ),
                           border: InputBorder.none,
+                          suffix: IconButton(
+                      tooltip: 'Send voice message',
+                      icon: Icon(
+                        isListen ? Icons.mic : Icons.mic_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        _listen();
+                      },
+                    ),
                         ),
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            0xFF4F46E5,
-                          ).withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      tooltip: 'Send message',
-                      icon: Icon(
-                        isListen ? Icons.mic : Icons.mic_off,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        _listen();
-                      },
-                    ),
-                  ),
                   Container(
                     width: 48,
                     height: 48,
