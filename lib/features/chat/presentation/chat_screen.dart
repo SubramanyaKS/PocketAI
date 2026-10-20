@@ -26,6 +26,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final bool _modelReady = true;
   bool _isThinking = false;
+  bool _hasResponseStarted = false;
   bool _isHistoryReady = false;
   final String _status = 'AI is ready';
   String? _historyError;
@@ -185,7 +186,10 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    setState(() => _isThinking = true);
+    setState(() {
+      _isThinking = true;
+      _hasResponseStarted = false;
+    });
 
     final createdAt = DateTime.now();
     final createdConversation = _currentConversationId == null;
@@ -246,21 +250,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (!mounted) return;
 
-    // Add an empty assistant message before generating the response.
     final assistantCreatedAt = DateTime.now();
     final assistantMessageIndex = _messages.length;
-
-    final placeholderMessage = ChatMessage(
-      conversationId: savedConversationId,
-      role: 'assistant',
-      content: '',
-      createdAt: assistantCreatedAt,
-    );
-
-    setState(() {
-      _messages.add(placeholderMessage);
-    });
-
     final responseBuffer = StringBuffer();
 
     try {
@@ -268,19 +259,27 @@ class _ChatScreenState extends State<ChatScreen> {
       await for (final chunk in widget.aiService.askStream(prompt)) {
         responseBuffer.write(chunk);
 
+        if (responseBuffer.toString().trim().isEmpty) continue;
         if (!mounted) return;
 
         setState(() {
-          _messages[assistantMessageIndex] = ChatMessage(
+          final message = ChatMessage(
             conversationId: savedConversationId,
             role: 'assistant',
             content: responseBuffer.toString(),
             createdAt: assistantCreatedAt,
           );
+          if (_messages.length == assistantMessageIndex) {
+            _messages.add(message);
+          } else {
+            _messages[assistantMessageIndex] = message;
+          }
+          _hasResponseStarted = true;
         });
       }
 
-      if (responseBuffer.isEmpty) {
+      if (responseBuffer.toString().trim().isEmpty) {
+        responseBuffer.clear();
         responseBuffer.write(
           'Sorry, I could not generate a response. Please try again.',
         );
@@ -289,7 +288,8 @@ class _ChatScreenState extends State<ChatScreen> {
       debugPrint('Inference error: $error');
       debugPrintStack(stackTrace: stackTrace);
 
-      if (responseBuffer.isEmpty) {
+      if (responseBuffer.toString().trim().isEmpty) {
+        responseBuffer.clear();
         responseBuffer.write(
           'Sorry, I could not generate a response. Please try again.',
         );
@@ -318,8 +318,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
 
     setState(() {
-      _messages[assistantMessageIndex] = assistantMessage;
+      if (_messages.length == assistantMessageIndex) {
+        _messages.add(assistantMessage);
+      } else {
+        _messages[assistantMessageIndex] = assistantMessage;
+      }
       _isThinking = false;
+      _hasResponseStarted = false;
     });
 
     try {
@@ -361,6 +366,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleMessages = _messages
+        .where((message) => message.content.trim().isNotEmpty)
+        .toList();
+
     return SafeArea(
       child: Scaffold(
         backgroundColor: const Color(0xFFF7F8FC),
@@ -531,9 +540,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     horizontal: 14,
                     vertical: 20,
                   ),
-                  itemCount: _messages.length + (_isThinking ? 1 : 0),
+                  itemCount:
+                      visibleMessages.length +
+                      (_isThinking && !_hasResponseStarted ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index == _messages.length) {
+                    if (index == visibleMessages.length) {
                       return const Padding(
                         padding: EdgeInsets.all(12),
                         child: Row(
@@ -545,7 +556,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       );
                     }
-                    final message = _messages[index];
+                    final message = visibleMessages[index];
                     final isMe = message.role == 'user';
 
                     return Padding(
