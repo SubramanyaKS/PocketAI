@@ -23,7 +23,11 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeModel();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) {
+      _initializeModel();
+    }
+  });
   }
 
   Future<void> _initializeModel() async {

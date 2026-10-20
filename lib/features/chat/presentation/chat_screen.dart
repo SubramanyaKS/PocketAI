@@ -185,6 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
       return;
     }
+    
 
     setState(() {
       _isThinking = true;
@@ -200,6 +201,8 @@ class _ChatScreenState extends State<ChatScreen> {
       conversationId ??= await _chatDatabase.createConversation(
         _conversationTitle(prompt),
       );
+      print("Message ${_messages}");
+      print("End ${conversationId}");
 
       userMessage = ChatMessage(
         conversationId: conversationId,
