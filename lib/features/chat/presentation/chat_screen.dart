@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
+import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatScreen extends StatefulWidget {
@@ -178,165 +179,158 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-  final prompt = _controller.text.trim();
+    final prompt = _controller.text.trim();
 
-  if (prompt.isEmpty ||
-      !_modelReady ||
-      !_isHistoryReady ||
-      _isThinking) {
-    return;
-  }
+    if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
+      return;
+    }
 
-  setState(() => _isThinking = true);
+    setState(() => _isThinking = true);
 
-  final createdAt = DateTime.now();
-  final createdConversation = _currentConversationId == null;
-  int? conversationId = _currentConversationId;
-  late final ChatMessage userMessage;
+    final createdAt = DateTime.now();
+    final createdConversation = _currentConversationId == null;
+    int? conversationId = _currentConversationId;
+    late final ChatMessage userMessage;
 
-  try {
-    conversationId ??= await _chatDatabase.createConversation(
-      _conversationTitle(prompt),
+    try {
+      conversationId ??= await _chatDatabase.createConversation(
+        _conversationTitle(prompt),
+      );
+
+      userMessage = ChatMessage(
+        conversationId: conversationId,
+        role: 'user',
+        content: prompt,
+        createdAt: createdAt,
+      );
+
+      await _chatDatabase.saveMessage(userMessage);
+    } catch (error, stackTrace) {
+      debugPrint('User message persistence error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (createdConversation && conversationId != null) {
+        try {
+          await _chatDatabase.deleteConversation(conversationId);
+        } catch (cleanupError, cleanupStackTrace) {
+          debugPrint('Empty conversation cleanup error: $cleanupError');
+          debugPrintStack(stackTrace: cleanupStackTrace);
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() => _isThinking = false);
+      _showHistoryError('Your message could not be saved. Please try again.');
+      return;
+    }
+
+    final savedConversationId = conversationId;
+
+    if (!mounted) return;
+
+    setState(() {
+      _currentConversationId = savedConversationId;
+      _messages.add(userMessage);
+    });
+
+    _controller.clear();
+
+    try {
+      await _refreshConversations();
+    } catch (error, stackTrace) {
+      debugPrint('Conversation list refresh error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('Chat history could not be refreshed.');
+    }
+
+    if (!mounted) return;
+
+    // Add an empty assistant message before generating the response.
+    final assistantCreatedAt = DateTime.now();
+    final assistantMessageIndex = _messages.length;
+
+    final placeholderMessage = ChatMessage(
+      conversationId: savedConversationId,
+      role: 'assistant',
+      content: '',
+      createdAt: assistantCreatedAt,
     );
 
-    userMessage = ChatMessage(
-      conversationId: conversationId,
-      role: 'user',
-      content: prompt,
-      createdAt: createdAt,
-    );
+    setState(() {
+      _messages.add(placeholderMessage);
+    });
 
-    await _chatDatabase.saveMessage(userMessage);
-  } catch (error, stackTrace) {
-    debugPrint('User message persistence error: $error');
-    debugPrintStack(stackTrace: stackTrace);
+    final responseBuffer = StringBuffer();
 
-    if (createdConversation && conversationId != null) {
-      try {
-        await _chatDatabase.deleteConversation(conversationId);
-      } catch (cleanupError, cleanupStackTrace) {
-        debugPrint('Empty conversation cleanup error: $cleanupError');
-        debugPrintStack(stackTrace: cleanupStackTrace);
+    try {
+      // Receive and display each chunk as it arrives.
+      await for (final chunk in widget.aiService.askStream(prompt)) {
+        responseBuffer.write(chunk);
+
+        if (!mounted) return;
+
+        setState(() {
+          _messages[assistantMessageIndex] = ChatMessage(
+            conversationId: savedConversationId,
+            role: 'assistant',
+            content: responseBuffer.toString(),
+            createdAt: assistantCreatedAt,
+          );
+        });
+      }
+
+      if (responseBuffer.isEmpty) {
+        responseBuffer.write(
+          'Sorry, I could not generate a response. Please try again.',
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Inference error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (responseBuffer.isEmpty) {
+        responseBuffer.write(
+          'Sorry, I could not generate a response. Please try again.',
+        );
       }
     }
 
     if (!mounted) return;
 
-    setState(() => _isThinking = false);
-    _showHistoryError(
-      'Your message could not be saved. Please try again.',
+    // Save the final assistant response to the database.
+    final assistantMessage = ChatMessage(
+      conversationId: savedConversationId,
+      role: 'assistant',
+      content: responseBuffer.toString(),
+      createdAt: assistantCreatedAt,
     );
-    return;
-  }
 
-  final savedConversationId = conversationId;
+    try {
+      await _chatDatabase.saveMessage(assistantMessage);
+    } catch (error, stackTrace) {
+      debugPrint('Assistant message persistence error: $error');
+      debugPrintStack(stackTrace: stackTrace);
 
-  if (!mounted) return;
-
-  setState(() {
-    _currentConversationId = savedConversationId;
-    _messages.add(userMessage);
-  });
-
-  _controller.clear();
-
-  try {
-    await _refreshConversations();
-  } catch (error, stackTrace) {
-    debugPrint('Conversation list refresh error: $error');
-    debugPrintStack(stackTrace: stackTrace);
-    _showHistoryError('Chat history could not be refreshed.');
-  }
-
-  if (!mounted) return;
-
-  // Add an empty assistant message before generating the response.
-  final assistantCreatedAt = DateTime.now();
-  final assistantMessageIndex = _messages.length;
-
-  final placeholderMessage = ChatMessage(
-    conversationId: savedConversationId,
-    role: 'assistant',
-    content: '',
-    createdAt: assistantCreatedAt,
-  );
-
-  setState(() {
-    _messages.add(placeholderMessage);
-  });
-
-  final responseBuffer = StringBuffer();
-
-  try {
-    // Receive and display each chunk as it arrives.
-    await for (final chunk in widget.aiService.askStream(prompt)) {
-      responseBuffer.write(chunk);
-
-      if (!mounted) return;
-
-      setState(() {
-        _messages[assistantMessageIndex] = ChatMessage(
-          conversationId: savedConversationId,
-          role: 'assistant',
-          content: responseBuffer.toString(),
-          createdAt: assistantCreatedAt,
-        );
-      });
+      _showHistoryError('The response could not be saved to chat history.');
     }
 
-    if (responseBuffer.isEmpty) {
-      responseBuffer.write(
-        'Sorry, I could not generate a response. Please try again.',
-      );
+    if (!mounted) return;
+
+    setState(() {
+      _messages[assistantMessageIndex] = assistantMessage;
+      _isThinking = false;
+    });
+
+    try {
+      await _refreshConversations();
+    } catch (error, stackTrace) {
+      debugPrint('Conversation list refresh error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      _showHistoryError('Chat history could not be refreshed.');
     }
-  } catch (error, stackTrace) {
-    debugPrint('Inference error: $error');
-    debugPrintStack(stackTrace: stackTrace);
-
-    if (responseBuffer.isEmpty) {
-      responseBuffer.write(
-        'Sorry, I could not generate a response. Please try again.',
-      );
-    }
   }
-
-  if (!mounted) return;
-
-  // Save the final assistant response to the database.
-  final assistantMessage = ChatMessage(
-    conversationId: savedConversationId,
-    role: 'assistant',
-    content: responseBuffer.toString(),
-    createdAt: assistantCreatedAt,
-  );
-
-  try {
-    await _chatDatabase.saveMessage(assistantMessage);
-  } catch (error, stackTrace) {
-    debugPrint('Assistant message persistence error: $error');
-    debugPrintStack(stackTrace: stackTrace);
-
-    _showHistoryError(
-      'The response could not be saved to chat history.',
-    );
-  }
-
-  if (!mounted) return;
-
-  setState(() {
-    _messages[assistantMessageIndex] = assistantMessage;
-    _isThinking = false;
-  });
-
-  try {
-    await _refreshConversations();
-  } catch (error, stackTrace) {
-    debugPrint('Conversation list refresh error: $error');
-    debugPrintStack(stackTrace: stackTrace);
-
-    _showHistoryError('Chat history could not be refreshed.');
-  }
-}
 
   void _listen() async {
     if (!isListen) {
@@ -517,93 +511,106 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-            // Messages list
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 20,
+            if (_isHistoryReady && _messages.isEmpty && _historyError == null)
+              Expanded(
+                child: ChatEmptyWidget(
+                  onPromptSelected: (prompt) {
+                    _controller
+                      ..text = prompt
+                      ..selection = TextSelection.collapsed(
+                        offset: prompt.length,
+                      );
+                  },
                 ),
-                itemCount: _messages.length + (_isThinking ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == _messages.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(12),
+              )
+            else
+              // Messages list
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 20,
+                  ),
+                  itemCount: _messages.length + (_isThinking ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            CircularProgressIndicator(strokeWidth: 2),
+                            SizedBox(width: 12),
+                            Text('Pocket AI is thinking...'),
+                          ],
+                        ),
+                      );
+                    }
+                    final message = _messages[index];
+                    final isMe = message.role == 'user';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
                       child: Row(
+                        mainAxisAlignment: isMe
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          CircularProgressIndicator(strokeWidth: 2),
-                          SizedBox(width: 12),
-                          Text('Pocket AI is thinking...'),
+                          if (!isMe) ...[
+                            const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Color(0xFFE0E7FF),
+                              child: Icon(
+                                Icons.smart_toy_rounded,
+                                size: 18,
+                                color: Color(0xFF4F46E5),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(18),
+                                  topRight: const Radius.circular(18),
+                                  bottomLeft: Radius.circular(isMe ? 18 : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : 18),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                message.content,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 1.5,
+                                  color: isMe
+                                      ? Colors.white
+                                      : const Color(0xFF20283A),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isMe) const SizedBox(width: 4),
                         ],
                       ),
                     );
-                  }
-                  final message = _messages[index];
-                  final isMe = message.role == 'user';
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Row(
-                      mainAxisAlignment: isMe
-                          ? MainAxisAlignment.end
-                          : MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (!isMe) ...[
-                          const CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Color(0xFFE0E7FF),
-                            child: Icon(
-                              Icons.smart_toy_rounded,
-                              size: 18,
-                              color: Color(0xFF4F46E5),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isMe
-                                  ? const Color(0xFF4F46E5)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(18),
-                                topRight: const Radius.circular(18),
-                                bottomLeft: Radius.circular(isMe ? 18 : 4),
-                                bottomRight: Radius.circular(isMe ? 4 : 18),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              message.content,
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.5,
-                                color: isMe
-                                    ? Colors.white
-                                    : const Color(0xFF20283A),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (isMe) const SizedBox(width: 4),
-                      ],
-                    ),
-                  );
-                },
+                  },
+                ),
               ),
-            ),
 
             // Message input area
             Container(
@@ -636,15 +643,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                           border: InputBorder.none,
                           suffix: IconButton(
-                      tooltip: 'Send voice message',
-                      icon: Icon(
-                        isListen ? Icons.mic : Icons.mic_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        _listen();
-                      },
-                    ),
+                            tooltip: 'Send voice message',
+                            icon: Icon(
+                              isListen ? Icons.mic : Icons.mic_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              _listen();
+                            },
+                          ),
                         ),
                         onSubmitted: (_) => _sendMessage(),
                       ),
