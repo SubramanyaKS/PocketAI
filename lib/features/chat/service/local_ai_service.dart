@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:llama_flutter_android/llama_flutter_android.dart';
+import 'package:llama_flutter_android/llama_flutter_android.dart' as llama;
 import 'package:path_provider/path_provider.dart';
+import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/service/think_filter.dart';
 import 'package:pocket_ai/utils/constant.dart';
 
@@ -10,7 +11,7 @@ class LocalAiService {
   static const _modelFileName = modelFileName;
   static const _modelUrl = modelUrl;
 
-  final LlamaController _controller = LlamaController();
+  final llama.LlamaController _controller = llama.LlamaController();
   final Dio _dio = Dio();
 
   bool _isLoaded = false;
@@ -94,19 +95,18 @@ class LocalAiService {
     _isLoaded = true;
   }
 
-  
-Stream<String> askStream(String prompt) async* {
-  if (!_isLoaded) {
-    throw StateError('Model has not been loaded');
-  }
+  Stream<String> askStream(List<ChatMessage> conversation) async* {
+    if (!_isLoaded) {
+      throw StateError('Model has not been loaded');
+    }
 
-  final filter = ThinkFilter();
+    final filter = ThinkFilter();
 
-  final tokenStream = _controller.generateChat(
-    messages: [
-      ChatMessage(
-        role: 'system',
-        content: '''
+    final tokenStream = _controller.generateChat(
+      messages: [
+        llama.ChatMessage(
+          role: 'system',
+          content: '''
 You are Pocket AI, a helpful offline assistant.
 
 Rules:
@@ -118,28 +118,26 @@ Rules:
 - If you do not know the answer, admit it honestly.
 - Keep answers concise unless asked for details.
 ''',
-      ),
-      ChatMessage(
-        role: 'user',
-        content: prompt,
-      ),
-    ],
-    maxTokens: 256,
-    temperature: 0.3,
-  );
+        ),
+        for (final message in conversation)
+          llama.ChatMessage(role: message.role, content: message.content),
+      ],
+      maxTokens: 256,
+      temperature: 0.3,
+    );
 
-  await for (final chunk in tokenStream) {
-    final cleaned = filter.process(chunk);
+    await for (final chunk in tokenStream) {
+      final cleaned = filter.process(chunk);
 
-    if (cleaned.isNotEmpty) {
-      yield cleaned;
+      if (cleaned.isNotEmpty) {
+        yield cleaned;
+      }
+    }
+
+    final remaining = filter.finish();
+
+    if (remaining.isNotEmpty) {
+      yield remaining;
     }
   }
-
-  final remaining = filter.finish();
-
-  if (remaining.isNotEmpty) {
-    yield remaining;
-  }
-}
 }

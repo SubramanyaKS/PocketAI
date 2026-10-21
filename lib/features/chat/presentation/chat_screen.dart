@@ -179,13 +179,42 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${String.fromCharCodes(characters.take(48))}...';
   }
 
+  List<ChatMessage> _buildContextMessages(
+    String prompt,
+    ChatMessage currentMessage,
+  ) {
+    const maxInputCharacters = 3000;
+    const maxHistoryMessages = 6;
+    var remainingHistoryCharacters = maxInputCharacters - prompt.runes.length;
+    final history = <ChatMessage>[];
+    final previousMessages = _messages.take(_messages.length - 1).toList();
+
+    for (final message in previousMessages.reversed) {
+      if (history.length == maxHistoryMessages ||
+          remainingHistoryCharacters <= 0) {
+        break;
+      }
+      if ((message.role != 'user' && message.role != 'assistant') ||
+          message.content.trim().isEmpty) {
+        continue;
+      }
+
+      final messageCharacters = message.content.runes.length;
+      if (messageCharacters > remainingHistoryCharacters) break;
+
+      history.add(message);
+      remainingHistoryCharacters -= messageCharacters;
+    }
+
+    return [...history.reversed, currentMessage];
+  }
+
   Future<void> _sendMessage() async {
     final prompt = _controller.text.trim();
 
     if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
       return;
     }
-    
 
     setState(() {
       _isThinking = true;
@@ -201,8 +230,6 @@ class _ChatScreenState extends State<ChatScreen> {
       conversationId ??= await _chatDatabase.createConversation(
         _conversationTitle(prompt),
       );
-      print("Message ${_messages}");
-      print("End ${conversationId}");
 
       userMessage = ChatMessage(
         conversationId: conversationId,
@@ -256,10 +283,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final assistantCreatedAt = DateTime.now();
     final assistantMessageIndex = _messages.length;
     final responseBuffer = StringBuffer();
+    final contextMessages = _buildContextMessages(prompt, userMessage);
 
     try {
       // Receive and display each chunk as it arrives.
-      await for (final chunk in widget.aiService.askStream(prompt)) {
+      await for (final chunk in widget.aiService.askStream(contextMessages)) {
         responseBuffer.write(chunk);
 
         if (responseBuffer.toString().trim().isEmpty) continue;
