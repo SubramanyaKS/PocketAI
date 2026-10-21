@@ -1,6 +1,8 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
@@ -22,6 +24,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   List<Map<String, dynamic>> _conversations = [];
+  final FlutterTts _flutterTts = FlutterTts();
   int? _currentConversationId;
 
   final bool _modelReady = true;
@@ -31,10 +34,24 @@ class _ChatScreenState extends State<ChatScreen> {
   final String _status = 'AI is ready';
   String? _historyError;
   bool isListen = false;
+  bool isSpeak = false;
+  final double _volume = 1.0; // Range: 0.0 to 1.0
+  final double _pitch = 1.0; // Range: 0.5 to 2.0
+  final double _rate = 0.5; // Range: 0.0 to 1.0
 
   @override
   void initState() {
     super.initState();
+    _flutterTts.setCompletionHandler(() {
+      if (!mounted) return;
+      setState(() => isSpeak = false);
+    });
+    _flutterTts.setErrorHandler((message) {
+      log('Text-to-speech error: $message');
+      if (!mounted) return;
+      setState(() => isSpeak = false);
+      _showHistoryError('The response could not be spoken.');
+    });
     _loadHistory();
   }
 
@@ -171,6 +188,20 @@ class _ChatScreenState extends State<ChatScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _copyMessage(String content) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: content));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Response copied to clipboard')),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Response copy error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showHistoryError('The response could not be copied.');
+    }
   }
 
   String _conversationTitle(String prompt) {
@@ -389,8 +420,41 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _speak(String content) async {
+    if (isSpeak || content.trim().isEmpty) return;
+
+    setState(() => isSpeak = true);
+    try {
+      await _flutterTts.setVolume(_volume);
+      await _flutterTts.setPitch(_pitch);
+      await _flutterTts.setSpeechRate(_rate);
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.speak(content);
+    } catch (error, stackTrace) {
+      log('Text-to-speech playback error: $error', stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() => isSpeak = false);
+      _showHistoryError('The response could not be spoken.');
+    }
+  }
+
+  Future<void> _stop() async {
+    setState(() => isSpeak = false);
+    try {
+      await _flutterTts.stop();
+    } catch (error, stackTrace) {
+      log('Text-to-speech stop error: $error', stackTrace: stackTrace);
+      _showHistoryError('Speech could not be stopped.');
+    }
+  }
+
+  Future<void> _toggleSpeech(String content) {
+    return isSpeak ? _stop() : _speak(content);
+  }
+
   @override
   void dispose() {
+    _flutterTts.stop();
     _controller.dispose();
     super.dispose();
   }
@@ -610,43 +674,108 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             const SizedBox(width: 8),
                           ],
+
                           Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isMe
-                                    ? const Color(0xFF4F46E5)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(18),
-                                  topRight: const Radius.circular(18),
-                                  bottomLeft: Radius.circular(isMe ? 18 : 4),
-                                  bottomRight: Radius.circular(isMe ? 4 : 18),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
+                            child: Column(
+                              crossAxisAlignment: isMe
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
                                   ),
-                                ],
-                              ),
-                              child: Text(
-                                message.content,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  height: 1.5,
-                                  color: isMe
-                                      ? Colors.white
-                                      : const Color(0xFF20283A),
+                                  decoration: BoxDecoration(
+                                    color: isMe
+                                        ? const Color(0xFF4F46E5)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: const Radius.circular(18),
+                                      topRight: const Radius.circular(18),
+                                      bottomLeft: Radius.circular(
+                                        isMe ? 18 : 4,
+                                      ),
+                                      bottomRight: Radius.circular(
+                                        isMe ? 4 : 18,
+                                      ),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.04,
+                                        ),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    message.content,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      height: 1.5,
+                                      color: isMe
+                                          ? Colors.white
+                                          : const Color(0xFF20283A),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (!isMe)
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Copy response',
+                                        onPressed: () =>
+                                            _copyMessage(message.content),
+                                        icon: const Icon(
+                                          Icons.copy_rounded,
+                                          size: 18,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: isSpeak
+                                            ? 'Stop speaking'
+                                            : 'Read response aloud',
+                                        onPressed: () =>
+                                            _toggleSpeech(message.content),
+                                        icon: Icon(
+                                          isSpeak
+                                              ? Icons.stop_rounded
+                                              : Icons.volume_up,
+                                          size: 18,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.all(4),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                           ),
-                          if (isMe) const SizedBox(width: 4),
+                          // if (isMe) ...[
+                          //   const SizedBox(width: 8),
+                          //   const CircleAvatar(
+                          //     radius: 16,
+                          //     backgroundColor: Color(0xFFE0E7FF),
+                          //     child: Icon(
+                          //       Icons.person,
+                          //       size: 18,
+                          //       color: Color(0xFF4F46E5),
+                          //     ),
+                          //   ),
+
+                          // ],
                         ],
                       ),
                     );
