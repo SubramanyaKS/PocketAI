@@ -11,32 +11,32 @@ Pocket AI is a Flutter-based local AI chat app that downloads a GGUF language mo
 
 ## Overview
 
-This app uses a lightweight quantized LLM from Hugging Face and loads it with `llama_flutter_android` / llama.cpp. When the app opens, a model setup screen checks whether the model is already present; if it is not, it downloads it and stores it locally. After the model is ready, the app opens chat and reuses the local model on later launches.
+The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llama_flutter_android` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, and displays download progress. Once the model is loaded, the app opens chat and reuses the same loaded service.
 
 ## Features
 
 - Local-first AI chat experience
-- Automatic model download and caching
-- Works with GGUF format models
+- Automatic model download, GGUF validation, and caching
 - Runs inference on-device without sending prompts to a remote server
-- Speech-to-text support for voice input
-- Simple chat UI built in Flutter
-- Reuses saved model files across app launches
+- Streamed responses with recent conversation context
+- Persistent conversations and messages stored in a local SQLite database
+- Speech-to-text voice input and text-to-speech playback for responses
+- Model download, preparation, and native-load timing diagnostics in debug logs
 
 ## How it works
 
-1. The model setup screen checks the application support directory for a saved GGUF model.
-2. If the model does not exist, it downloads it from Hugging Face.
-3. The model is validated and stored locally.
-4. The app loads the model and generates responses directly on the device.
+1. The model setup screen checks the application support directory for a cached model.
+2. If no valid model is present, it downloads the GGUF file from Hugging Face and reports progress.
+3. The downloaded file is validated and stored locally for future launches.
+4. The app loads the model and opens chat. Prompts are processed on-device, and conversations are saved locally.
 
 ## Requirements
 
-- Flutter SDK 3.10.1 or newer
+- Flutter SDK with Dart 3.10.1 or newer
 - Android Studio / Android SDK
-- A device or emulator running Android
+- An Android device or emulator
 - Internet connection for the initial model download
-- Enough storage for the downloaded model (approximately 350 MB for the current model)
+- Enough device storage for the Qwen3 0.6B Q8_0 model
 
 ## Getting started
 
@@ -64,27 +64,50 @@ flutter run
 ```text
 .
 ├── android/
-├── ios/
+├── assets/
+│   └── icons/
 ├── lib/
 │   ├── app.dart
+│   ├── main.dart
 │   ├── features/
-│   │   └── chat/
-│   │       ├── presentation/
-│   │       └── service/
+│   │   ├── chat/
+│   │   │   ├── models/
+│   │   │   │   ├── chat_message.dart
+│   │   │   │   └── performance_metrics.dart
+│   │   │   ├── presentation/
+│   │   │   │   └── chat_screen.dart
+│   │   │   ├── service/
+│   │   │   │   ├── chat_database.dart
+│   │   │   │   ├── local_ai_service.dart
+│   │   │   │   └── think_filter.dart
+│   │   │   └── widgets/
+│   │   │       ├── chat_empty_widget.dart
+│   │   │       └── prompt_suggestion.dart
+│   │   ├── home/
+│   │   │   └── presentation/
+│   │   │       └── home_screen.dart
+│   │   └── model/
+│   │       └── presentation/
+│   │           └── model_setup_screen.dart
 │   └── utils/
-├── macos/
+│       └── constant.dart
 ├── test/
+│   ├── think_filter_test.dart
+│   └── widget_test.dart
+├── ios/
+├── linux/
+├── macos/
 ├── web/
 ├── windows/
 ├── analysis_options.yaml
+├── pubspec.lock
 ├── pubspec.yaml
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## Model behavior
 
-The current implementation downloads the Qwen model on first launch and caches it locally. This minimizes repeated network usage while keeping the app usable offline after the model is already available.
+The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
 
 ## Contributing
 
