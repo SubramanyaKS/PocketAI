@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/chat/presentation/chat_screen.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
+import 'package:pocket_ai/features/home/presentation/home_screen.dart';
 
 class ModelSetupScreen extends StatefulWidget {
   const ModelSetupScreen({super.key});
@@ -63,7 +63,7 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => ChatScreen(aiService: _aiService),
+          builder: (_) => HomeScreen(aiService: _aiService),
         ),
       );
     } catch (error, stackTrace) {

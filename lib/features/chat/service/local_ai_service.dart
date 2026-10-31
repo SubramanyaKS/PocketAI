@@ -1,15 +1,21 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:llama_flutter_android/llama_flutter_android.dart' as llama;
 import 'package:path_provider/path_provider.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
+import 'package:pocket_ai/features/chat/models/performance_metrics.dart';
 import 'package:pocket_ai/features/chat/service/think_filter.dart';
 import 'package:pocket_ai/utils/constant.dart';
 
 class LocalAiService {
   static const _modelFileName = modelFileName;
   static const _modelUrl = modelUrl;
+
+  PerformanceMetrics? _performanceMetrics;
+
+  PerformanceMetrics? get performanceMetrics => _performanceMetrics;
 
   final llama.LlamaController _controller = llama.LlamaController();
   final Dio _dio = Dio();
@@ -23,9 +29,12 @@ class LocalAiService {
     final modelDir = Directory.fromUri(appDir.uri.resolve('models'));
 
     await modelDir.create(recursive: true);
+
     final modelFile = File('${modelDir.path}/$_modelFileName');
 
+    // Reuse an existing valid model.
     if (await _hasGgufHeader(modelFile)) {
+      debugPrint('[PERF] Existing model found; skipping download.');
       return modelFile.path;
     }
 
@@ -34,9 +43,12 @@ class LocalAiService {
     }
 
     final partialFile = File('${modelFile.path}.part');
+
     if (await partialFile.exists()) {
       await partialFile.delete();
     }
+
+    final downloadTimer = Stopwatch()..start();
 
     try {
       await _dio.download(
@@ -45,8 +57,20 @@ class LocalAiService {
         onReceiveProgress: onDownloadProgress,
       );
 
-      if (!await partialFile.exists() || await partialFile.length() == 0) {
-        throw StateError('The model download completed without a model file.');
+      // Capture size BEFORE renaming the partial file.
+      if (!await partialFile.exists()) {
+        throw StateError('The model download did not create a file.');
+      }
+
+      final downloadedBytes = await partialFile.length();
+
+      debugPrint(
+        '[PERF] Downloaded file size: '
+        '${(downloadedBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
+      );
+
+      if (downloadedBytes == 0) {
+        throw StateError('The downloaded model file is empty.');
       }
 
       if (!await _hasGgufHeader(partialFile)) {
@@ -59,6 +83,13 @@ class LocalAiService {
         await partialFile.delete();
       }
       rethrow;
+    } finally {
+      downloadTimer.stop();
+
+      debugPrint(
+        '[PERF] Download duration: '
+        '${(downloadTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
+      );
     }
 
     return modelFile.path;
@@ -82,25 +113,110 @@ class LocalAiService {
   }) async {
     if (_isLoaded) return;
 
-    final modelPath = await _prepareModel(
-      onDownloadProgress: onDownloadProgress,
-    );
+    final totalTimer = Stopwatch()..start();
+    final prepareTimer = Stopwatch()..start();
+    Stopwatch? nativeLoadTimer;
 
-    await _controller.loadModel(
-      modelPath: modelPath,
-      threads: 4,
-      contextSize: 2048,
-    );
+    try {
+      // Stage 1: Find or download and validate the GGUF file.
+      final modelPath = await _prepareModel(
+        onDownloadProgress: onDownloadProgress,
+      );
 
-    _isLoaded = true;
+      prepareTimer.stop();
+
+      final modelFile = File(modelPath);
+      final modelSizeMB = (await modelFile.length()) / (1024 * 1024);
+
+      debugPrint(
+        '[PERF] Model preparation: '
+        '${(prepareTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
+      );
+      debugPrint(
+        '[PERF] Model file size: '
+        '${modelSizeMB.toStringAsFixed(1)} MB',
+      );
+
+      // Stage 2: Native llama.cpp model initialization.
+      nativeLoadTimer = Stopwatch()..start();
+
+      try {
+        await _controller.loadModel(
+          modelPath: modelPath,
+          threads: 4,
+          contextSize: 2048,
+        );
+      } finally {
+        nativeLoadTimer.stop();
+
+        debugPrint(
+          '[PERF] Native model load: '
+          '${(nativeLoadTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
+        );
+      }
+
+      _isLoaded = true;
+      debugPrint('[PERF] Model loaded successfully');
+    } finally {
+      if (prepareTimer.isRunning) {
+        prepareTimer.stop();
+      }
+
+      totalTimer.stop();
+
+      debugPrint(
+        '[PERF] Preparation total: '
+        '${(prepareTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
+      );
+
+      debugPrint(
+        '[PERF] Overall load operation: '
+        '${(totalTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
+      );
+    }
   }
 
+  // Future<void> loadModel({
+  //   void Function(int received, int total)? onDownloadProgress,
+  // }) async {
+
+  //   if (_isLoaded) return;
+  //   final stopwatch = Stopwatch()..start();
+
+  //   final modelPath = await _prepareModel(
+  //     onDownloadProgress: onDownloadProgress,
+  //   );
+
+  //   await _controller.loadModel(
+  //     modelPath: modelPath,
+  //     threads: 4,
+  //     contextSize: 2048,
+  //   );
+
+  //     stopwatch.stop();
+
+  //     _performanceMetrics = PerformanceMetrics(
+  //       modelLoadTimeMs: stopwatch.elapsedMilliseconds,
+  //     );
+  //     print(
+  //       'Model loaded in '
+  //       '${_performanceMetrics!.modelLoadTimeSeconds} seconds',
+  //     );
+
+  //   _isLoaded = true;
+  // }
+  //
   Stream<String> askStream(List<ChatMessage> conversation) async* {
     if (!_isLoaded) {
       throw StateError('Model has not been loaded');
     }
 
     final filter = ThinkFilter();
+
+    final generationTimer = Stopwatch()..start();
+    int? timeToFirstVisibleTextMs;
+    var visibleCharacters = 0;
+    final visibleOutput = StringBuffer();
 
     final tokenStream = _controller.generateChat(
       messages: [
@@ -119,25 +235,78 @@ Rules:
 - Keep answers concise unless asked for details.
 ''',
         ),
-        for (final message in conversation)
-          llama.ChatMessage(role: message.role, content: message.content),
+        for (var i = 0; i < conversation.length; i++)
+          llama.ChatMessage(
+            role: conversation[i].role,
+            content:
+                i == conversation.length - 1 && conversation[i].role == 'user'
+                ? '${conversation[i].content}\n/no_think'
+                : conversation[i].content,
+          ),
       ],
-      maxTokens: 256,
+      maxTokens: 128,
       temperature: 0.3,
     );
 
-    await for (final chunk in tokenStream) {
-      final cleaned = filter.process(chunk);
+    void recordVisibleText(String text) {
+      if (text.isEmpty) return;
 
-      if (cleaned.isNotEmpty) {
-        yield cleaned;
-      }
+      // Record TTFT only once, after filtering hidden reasoning.
+      timeToFirstVisibleTextMs ??= generationTimer.elapsedMilliseconds;
+
+      visibleCharacters += text.length;
+      visibleOutput.write(text);
     }
 
-    final remaining = filter.finish();
+    try {
+      await for (final chunk in tokenStream) {
+        final cleaned = filter.process(chunk);
 
-    if (remaining.isNotEmpty) {
-      yield remaining;
+        if (cleaned.isNotEmpty) {
+          recordVisibleText(cleaned);
+          yield cleaned;
+        }
+      }
+
+      // Include any visible text buffered by ThinkFilter.
+      final remaining = filter.finish();
+
+      if (remaining.isNotEmpty) {
+        recordVisibleText(remaining);
+        yield remaining;
+      }
+    } finally {
+      generationTimer.stop();
+
+      final totalMs = generationTimer.elapsedMilliseconds;
+      final output = visibleOutput.toString().trim();
+
+      final wordCount = output.isEmpty
+          ? 0
+          : output.split(RegExp(r'\s+')).length;
+
+      final seconds = totalMs / 1000.0;
+
+      print(
+        '[PERF] TTFT: '
+        '${timeToFirstVisibleTextMs == null ? "No visible output" : "$timeToFirstVisibleTextMs ms"}',
+      );
+
+      print('[PERF] Total generation time: ${seconds.toStringAsFixed(2)} s');
+      print('[PERF] Visible characters: $visibleCharacters');
+      print('[PERF] Visible words (approx): $wordCount');
+
+      if (seconds > 0) {
+        print(
+          '[PERF] Visible output speed: '
+          '${(wordCount / seconds).toStringAsFixed(2)} words/s',
+        );
+
+        print(
+          '[PERF] Character throughput: '
+          '${(visibleCharacters / seconds).toStringAsFixed(2)} chars/s',
+        );
+      }
     }
   }
 }

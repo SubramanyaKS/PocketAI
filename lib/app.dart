@@ -9,7 +9,7 @@ class PocketAiApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Pocket AI',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       home: const ModelSetupScreen(),
     );
   }
