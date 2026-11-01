@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
+import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 enum AssistantState {
@@ -22,17 +24,27 @@ class VoiceAssistantScreen extends StatefulWidget {
 }
 
 class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
 
   AssistantState _state = AssistantState.idle;
   String _userSpeech = '';
   String _aiResponse = '';
-  String _statusMessage = 'Tap the microphone to speak';
+  String _statusMessage = 'Tap to start conversation';
 
   late final AnimationController _pulseController;
+  late final AnimationController _waveController;
+  late final AnimationController _orbitController;
+
   late final Animation<double> _pulseAnimation;
+
+  final List<String> _quickSuggestions = [
+    'What can you do offline?',
+    'Tell me a fun quick fact',
+    'Give me a 5-minute study tip',
+    'How does local AI work?',
+  ];
 
   @override
   void initState() {
@@ -42,12 +54,22 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.15).animate(
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
+    _orbitController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
   }
 
   Future<void> _initTts() async {
@@ -60,7 +82,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       if (!mounted) return;
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'Tap to speak again';
+        _statusMessage = 'Listening finished. Tap to speak again';
       });
     });
 
@@ -68,7 +90,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       if (!mounted) return;
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'Audio playback error';
+        _statusMessage = 'Audio error. Tap to retry';
       });
     });
   }
@@ -115,7 +137,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _state = AssistantState.listening;
       _userSpeech = '';
       _aiResponse = '';
-      _statusMessage = 'Listening...';
+      _statusMessage = 'Listening to your voice...';
     });
 
     await _speech.listen(
@@ -148,7 +170,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     if (_userSpeech.trim().isEmpty) {
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'No speech detected. Tap to retry.';
+        _statusMessage = 'No speech detected. Tap to speak';
       });
       return;
     }
@@ -159,7 +181,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   Future<void> _processWithAi(String prompt) async {
     setState(() {
       _state = AssistantState.thinking;
-      _statusMessage = 'Thinking...';
+      _statusMessage = 'Pocket AI is thinking...';
       _aiResponse = '';
     });
 
@@ -168,7 +190,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         conversationId: 0,
         role: 'user',
         content:
-            '$prompt\n(Instruction: Keep your response short, conversational, and direct in 1-2 spoken sentences. Avoid markdown, asterisks, bullet points, or lists.)',
+            'prompt',
         createdAt: DateTime.now(),
       ),
     ];
@@ -177,7 +199,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     bool hasStartedSpeaking = false;
 
     try {
-      await for (final token in widget.aiService.askStream(conversation)) {
+      await for (final token in widget.aiService.askStream(conversation, systemPrompt: LocalAiService.defaultVoiceSystemPrompt, maxTokens: 120)) {
         if (!mounted || _state == AssistantState.idle) break;
 
         buffer.write(token);
@@ -186,12 +208,11 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
           _aiResponse = buffer.toString();
         });
 
-        // Trigger TTS early once we have a completed first sentence
         if (!hasStartedSpeaking && _containsSentenceEnding(buffer.toString())) {
           hasStartedSpeaking = true;
           setState(() {
             _state = AssistantState.speaking;
-            _statusMessage = 'Speaking...';
+            _statusMessage = 'Speaking response...';
           });
         }
       }
@@ -209,7 +230,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
       setState(() {
         _state = AssistantState.speaking;
-        _statusMessage = 'Speaking...';
+        _statusMessage = 'Speaking response...';
         _aiResponse = finalText;
       });
 
@@ -256,7 +277,6 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         _stopListening();
         break;
       case AssistantState.thinking:
-        // Cancel / reset
         setState(() {
           _state = AssistantState.idle;
           _statusMessage = 'Cancelled';
@@ -268,10 +288,31 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     }
   }
 
+  void _useSuggestion(String text) {
+    if (_state != AssistantState.idle) return;
+    setState(() {
+      _userSpeech = text;
+    });
+    _processWithAi(text);
+  }
+
+  List<Color> _getGradients(bool isDark) {
+    switch (_state) {
+      case AssistantState.idle:
+        return const [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899)];
+      case AssistantState.listening:
+        return const [Color(0xFFEF4444), Color(0xFFF43F5E), Color(0xFFFB923C)];
+      case AssistantState.thinking:
+        return const [Color(0xFFF59E0B), Color(0xFFEAB308), Color(0xFF3B82F6)];
+      case AssistantState.speaking:
+        return const [Color(0xFF10B981), Color(0xFF06B6D4), Color(0xFF6366F1)];
+    }
+  }
+
   Color _getPrimaryColor() {
     switch (_state) {
       case AssistantState.idle:
-        return const Color(0xFF4F46E5);
+        return const Color(0xFF6366F1);
       case AssistantState.listening:
         return const Color(0xFFEF4444);
       case AssistantState.thinking:
@@ -288,15 +329,30 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       case AssistantState.listening:
         return Icons.stop_rounded;
       case AssistantState.thinking:
-        return Icons.hourglass_top_rounded;
+        return Icons.auto_awesome_rounded;
       case AssistantState.speaking:
-        return Icons.volume_up_rounded;
+        return Icons.graphic_eq_rounded;
+    }
+  }
+
+  String _getSubtitleTip() {
+    switch (_state) {
+      case AssistantState.idle:
+        return 'Tap orb to start speaking';
+      case AssistantState.listening:
+        return 'Tap to finish & process';
+      case AssistantState.thinking:
+        return 'Analyzing & preparing reply...';
+      case AssistantState.speaking:
+        return 'Tap orb to interrupt';
     }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _waveController.dispose();
+    _orbitController.dispose();
     _speech.stop();
     _flutterTts.stop();
     super.dispose();
@@ -304,239 +360,596 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = _getPrimaryColor();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gradientColors = _getGradients(isDark);
+    final primaryColor = _getPrimaryColor();
+    final isPulsing =
+        _state == AssistantState.listening || _state == AssistantState.speaking;
 
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
           title: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: activeColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      primaryColor.withValues(alpha: 0.3),
+                      primaryColor.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
                 ),
-                child: Icon(Icons.graphic_eq_rounded, color: activeColor, size: 22),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFF6366F1),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Voice Assistant',
+                    'Pocket Voice',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  Text(
-                    'Offline Voice Mode',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '100% Offline AI',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ],
           ),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            children: [
-              // Status text header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: activeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+          actions: [
+            if (_userSpeech.isNotEmpty || _aiResponse.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear screen',
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  size: 22,
                 ),
-                child: Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: activeColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                onPressed: () {
+                  _stopTts();
+                  setState(() {
+                    _userSpeech = '';
+                    _aiResponse = '';
+                    _state = AssistantState.idle;
+                    _statusMessage = 'Tap to start conversation';
+                  });
+                },
+              ),
+            IconButton(
+              tooltip: 'Settings',
+              icon: Icon(
+                Icons.settings_outlined,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: Column(
+          children: [
+            const SizedBox(height: 12),
+
+            // Animated Status Pill
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              decoration: BoxDecoration(
+                color: primaryColor.withValues(alpha: isDark ? 0.15 : 0.10),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: primaryColor.withValues(alpha: 0.35),
+                  width: 1,
                 ),
               ),
-              const SizedBox(height: 24),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_state == AssistantState.thinking)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: primaryColor,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor,
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-              // Conversation display container
-              Expanded(
+            const SizedBox(height: 16),
+
+            // Conversation display card
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    color: isDark
+                        ? const Color(0xFF131B2E).withValues(alpha: 0.85)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.4 : 0.04,
+                        ),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_userSpeech.isNotEmpty) ...[
-                          const Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 16, color: Color(0xFF64748B)),
-                              SizedBox(width: 6),
-                              Text(
-                                'You said:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: Color(0xFF64748B),
-                                ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_userSpeech.isEmpty && _aiResponse.isEmpty) ...[
+                            Center(
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFEEF2FF),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE0E7FF),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.graphic_eq_rounded,
+                                      size: 36,
+                                      color: Color(0xFF6366F1),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'How can I help you today?',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Speak naturally. Answers are generated on-device with zero internet.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: _quickSuggestions
+                                        .map((suggestion) => ActionChip(
+                                              label: Text(
+                                                suggestion,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isDark
+                                                      ? const Color(0xFFCBD5E1)
+                                                      : const Color(0xFF334155),
+                                                ),
+                                              ),
+                                              backgroundColor: isDark
+                                                  ? const Color(0xFF1E293B)
+                                                  : const Color(0xFFF1F5F9),
+                                              side: BorderSide(
+                                                color: isDark
+                                                    ? Colors.white.withValues(alpha: 0.1)
+                                                    : const Color(0xFFE2E8F0),
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              onPressed: () =>
+                                                  _useSuggestion(suggestion),
+                                            ))
+                                        .toList(),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _userSpeech,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF0F172A),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Divider(),
-                          const SizedBox(height: 16),
-                        ],
-
-                        const Row(
-                          children: [
-                            Icon(Icons.smart_toy_outlined, size: 16, color: Color(0xFF64748B)),
-                            SizedBox(width: 6),
-                            Text(
-                              'Pocket AI:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
+                          ] else ...[
+                            if (_userSpeech.isNotEmpty) ...[
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2563EB)
+                                          .withValues(alpha: 0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.person_rounded,
+                                      color: Color(0xFF60A5FA),
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'You',
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _userSpeech,
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
+                              const SizedBox(height: 20),
+                              Divider(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : const Color(0xFFE2E8F0),
+                                height: 1,
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: primaryColor.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.auto_awesome_rounded,
+                                    color: primaryColor,
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pocket AI',
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (_state == AssistantState.thinking &&
+                                          _aiResponse.isEmpty) ...[
+                                        Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: primaryColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              'Generating answer...',
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
+                                                fontSize: 14,
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ] else ...[
+                                        Text(
+                                          _aiResponse.isEmpty
+                                              ? 'Processing your request...'
+                                              : _aiResponse,
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? const Color(0xFFE2E8F0)
+                                                : const Color(0xFF1E293B),
+                                            fontSize: 16,
+                                            height: 1.5,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        if (_state == AssistantState.thinking && _aiResponse.isEmpty) ...[
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: activeColor,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                'Generating spoken response...',
-                                style: TextStyle(
-                                  fontStyle: FontStyle.italic,
-                                  color: Color(0xFF94A3B8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          Text(
-                            _aiResponse.isEmpty
-                                ? (_userSpeech.isEmpty
-                                    ? 'Tap the microphone below and speak naturally. Everything is processed offline on your device.'
-                                    : 'Processing...')
-                                : _aiResponse,
-                            style: TextStyle(
-                              fontSize: 17,
-                              height: 1.5,
-                              color: _aiResponse.isEmpty
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF1E293B),
-                            ),
-                          ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-              // Interactive Animated Action Button
-              GestureDetector(
+            // Live Audio Wave Animation Bar
+            SizedBox(
+              height: 36,
+              child: AnimatedBuilder(
+                animation: _waveController,
+                builder: (context, child) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(24, (index) {
+                      final waveOffset = index * 0.26;
+                      final rawSin = math.sin(
+                          (_waveController.value * 2 * math.pi) + waveOffset);
+                      final normalized = (rawSin + 1) / 2;
+
+                      final height = isPulsing
+                          ? 6 + (normalized * 26)
+                          : (_state == AssistantState.thinking
+                              ? 4 + (math.sin(index * 0.5) * 6).abs()
+                              : 4.0);
+
+                      return Container(
+                        width: 3.5,
+                        height: height,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          color: isPulsing
+                              ? primaryColor.withValues(
+                                  alpha: 0.4 + (normalized * 0.6))
+                              : (isDark
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : const Color(0xFFCBD5E1)),
+                        ),
+                      );
+                    }),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Glowing Animated Voice Orb Button
+            Center(
+              child: GestureDetector(
                 onTap: _onMainButtonPressed,
-                child: AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    final isPulsing = _state == AssistantState.listening ||
-                        _state == AssistantState.speaking;
-                    final scale = isPulsing ? _pulseAnimation.value : 1.0;
-
-                    return Transform.scale(
-                      scale: scale,
-                      child: Container(
-                        width: 90,
-                        height: 90,
+                child: SizedBox(
+                  width: 140,
+                  height: 140,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _orbitController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _orbitController.value * 2 * math.pi,
+                            child: Container(
+                              width: 130,
+                              height: 130,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: primaryColor.withValues(
+                                      alpha: isPulsing ? 0.35 : 0.15),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      AnimatedBuilder(
+                        animation: _pulseAnimation,
+                        builder: (context, child) {
+                          final scale =
+                              isPulsing ? _pulseAnimation.value : 1.0;
+                          return Transform.scale(
+                            scale: scale,
+                            child: Container(
+                              width: 104,
+                              height: 104,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: primaryColor.withValues(
+                                      alpha: isPulsing ? 0.55 : 0.25,
+                                    ),
+                                    blurRadius: isPulsing ? 32 : 18,
+                                    spreadRadius: isPulsing ? 8 : 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Container(
+                        width: 86,
+                        height: 86,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: activeColor,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: gradientColors,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            width: 2,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: activeColor.withValues(
-                                alpha: isPulsing ? 0.45 : 0.25,
-                              ),
-                              blurRadius: isPulsing ? 28 : 16,
-                              spreadRadius: isPulsing ? 6 : 2,
-                              offset: const Offset(0, 6),
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: Icon(
-                          _getButtonIcon(),
-                          color: Colors.white,
-                          size: 40,
+                        child: Center(
+                          child: Icon(
+                            _getButtonIcon(),
+                            color: Colors.white,
+                            size: 38,
+                          ),
                         ),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
-              Text(
-                _state == AssistantState.listening
-                    ? 'Tap to stop & send'
-                    : (_state == AssistantState.speaking
-                        ? 'Tap to stop audio'
-                        : (_state == AssistantState.thinking
-                            ? 'Tap to cancel'
-                            : 'Tap to speak')),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF64748B),
-                ),
+            Text(
+              _getSubtitleTip(),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.6)
+                    : const Color(0xFF64748B),
+                letterSpacing: 0.2,
               ),
+            ),
 
-              const SizedBox(height: 16),
-            ],
-          ),
+            const SizedBox(height: 18),
+          ],
         ),
       ),
     );

@@ -15,12 +15,14 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 
 ## Features
 
-- **Local-first AI chat**: Text conversation with streaming inference and SQLite chat history persistence.
-- **Dedicated offline voice assistant**: Interactive voice mode (STT ➔ on-device LLM ➔ TTS) featuring multi-state pulsing UI (Idle, Listening, Thinking, Speaking).
-- **On-device speech recognition & synthesis**: Speech-to-text dictation and voice audio playback powered completely offline.
-- **Automatic model download & caching**: Downloads GGUF model on first launch, validates headers, and reuses local storage for subsequent launches.
-- **100% private inference**: Processes all text and voice prompts completely on-device without sending data to cloud servers.
-- **Diagnostics & telemetry**: Detailed TTFT (Time-To-First-Token), download, preparation, and token throughput logging.
+- **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
+- **Interactive Offline Voice Assistant**: Real-time conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer.
+- **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
+- **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
+- **Offline Speech Recognition & Synthesis**: On-device speech-to-text dictation and natural speech playback via speech_to_text and lutter_tts.
+- **Automatic Model Download & Caching**: GGUF model download with SHA/header validation and zero-internet reuse on subsequent launches.
+- **100% Private On-Device Inference**: No prompts, audio, or message data ever leave the device.
+- **Diagnostics & Telemetry**: Logs TTFT (Time-To-First-Token), visible characters/words per second, and inference latency.
 
 ## How it works
 
@@ -68,6 +70,8 @@ flutter run
 ├── lib/
 │   ├── app.dart
 │   ├── main.dart
+│   ├── provider/
+│   │   └── theme_provider.dart
 │   ├── features/
 │   │   ├── assistant/
 │   │   │   └── presentation/
@@ -88,9 +92,12 @@ flutter run
 │   │   ├── home/
 │   │   │   └── presentation/
 │   │   │       └── home_screen.dart
-│   │   └── model/
+│   │   ├── model/
+│   │   │   └── presentation/
+│   │   │       └── model_setup_screen.dart
+│   │   └── settings/
 │   │       └── presentation/
-│   │           └── model_setup_screen.dart
+│   │           └── seetings_screen.dart
 │   └── utils/
 │       └── constant.dart
 ├── test/
@@ -120,7 +127,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 
 ## Model behavior
 
-The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model with llamadart. Inference uses a 2,048-token context, four generation threads, and streamed output with a 128-token limit. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
+The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model with llamadart. Inference uses a 2,048-token context, four generation threads, and configurable max token limits (256 tokens for chat, 120 tokens for voice assistant) with specialized system prompts. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
 
 ## Inference package migration
 

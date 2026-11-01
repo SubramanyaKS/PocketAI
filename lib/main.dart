@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocket_ai/app.dart';
 
 void main() {
-  runApp(const PocketAiApp());
+  runApp(const ProviderScope(
+      child: PocketAiApp(),
+    ),);
 }

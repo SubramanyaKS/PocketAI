@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 class PromptSuggestion extends StatelessWidget {
-  const PromptSuggestion({super.key, 
+  const PromptSuggestion({
+    super.key,
     required this.label,
     required this.icon,
     required this.onTap,
@@ -12,8 +14,10 @@ class PromptSuggestion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -22,17 +26,21 @@ class PromptSuggestion extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE6E8EF)),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : const Color(0xFFE6E8EF),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 17, color: const Color(0xFF4F46E5)),
+              Icon(icon, size: 17, color: const Color(0xFF6366F1)),
               const SizedBox(width: 7),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF41485A),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF41485A),
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),

@@ -175,7 +175,32 @@ class LocalAiService {
     }
   }
 
-  Stream<String> askStream(List<ChatMessage> conversation) async* {
+  static const String defaultChatSystemPrompt = '''
+You are Pocket AI, a fast, knowledgeable offline AI assistant running completely on-device.
+
+Guidelines:
+- Answer accurately, clearly, and directly in natural English.
+- Use clean formatting, bullet points, or markdown code blocks when helpful.
+- Provide only the final answer without internal reasoning or <think> tags.
+- If you do not know an answer, state it honestly rather than guessing.
+- Keep answers helpful and avoid unnecessary fluff.
+''';
+
+  static const String defaultVoiceSystemPrompt = '''
+You are Pocket Voice, an offline conversational voice assistant.
+
+Guidelines:
+- Respond in 1 to 2 short, natural, conversational sentences.
+- Never use emojis, markdown, asterisks, bullet points, or lists, because your answer will be spoken out loud.
+- Be direct, friendly, and helpful.
+''';
+
+  Stream<String> askStream(
+    List<ChatMessage> conversation, {
+    String? systemPrompt,
+    int maxTokens = 256,
+    double temperature = 0.3,
+  }) async* {
     if (!_isLoaded) {
       throw StateError('Model has not been loaded');
     }
@@ -187,22 +212,13 @@ class LocalAiService {
     var visibleCharacters = 0;
     final visibleOutput = StringBuffer();
 
+    final effectiveSystemPrompt = systemPrompt ?? defaultChatSystemPrompt;
+
     final tokenStream = _engine.create(
       [
         LlamaChatMessage.fromText(
           role: LlamaChatRole.system,
-          text: '''
-You are Pocket AI, a helpful offline assistant.
-
-Rules:
-- Answer directly and naturally in clear English.
-- Provide only the final answer, not internal reasoning.
-- Never output <think> or </think> tags.
-- Never use placeholders such as [insert name].
-- If you know the answer, provide it directly.
-- If you do not know the answer, admit it honestly.
-- Keep answers concise unless asked for details.
-''',
+          text: effectiveSystemPrompt.trim(),
         ),
         for (var i = 0; i < conversation.length; i++)
           LlamaChatMessage.fromText(
@@ -212,7 +228,7 @@ Rules:
                 : conversation[i].content,
           ),
       ],
-      params: const GenerationParams(maxTokens: 128, temp: 0.3),
+      params: GenerationParams(maxTokens: maxTokens, temp: temperature),
       enableThinking: false,
     );
 
