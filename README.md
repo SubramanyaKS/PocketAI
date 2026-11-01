@@ -1,7 +1,7 @@
 # Pocket AI
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Flutter-3.10%2B-02569B?logo=flutter" alt="Flutter" />
+  <img src="https://img.shields.io/badge/Flutter-3.38%2B-02569B?logo=flutter" alt="Flutter" />
   <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android" alt="Android" />
   <img src="https://img.shields.io/badge/Model-GGUF-FF6B6B" alt="GGUF" />
   <img src="https://img.shields.io/badge/Local-AI-6C63FF" alt="Local AI" />
@@ -11,7 +11,7 @@ Pocket AI is a Flutter-based local AI chat app that downloads a GGUF language mo
 
 ## Overview
 
-The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llama_flutter_android` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, and displays download progress. Once the model is loaded, the app opens chat and reuses the same loaded service.
+The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llamadart` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, and displays download progress. Once the model is loaded, the app opens chat and reuses the same loaded service.
 
 ## Features
 
@@ -32,7 +32,7 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 
 ## Requirements
 
-- Flutter SDK with Dart 3.10.1 or newer
+- Flutter SDK 3.38.0 or newer (Dart 3.10.7 or newer)
 - Android Studio / Android SDK
 - An Android device or emulator
 - Internet connection for the initial model download
@@ -107,7 +107,11 @@ flutter run
 
 ## Model behavior
 
-The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
+The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model with llamadart. Inference uses a 2,048-token context, four generation threads, and streamed output with a 128-token limit. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
+
+## Inference package migration
+
+The inference service uses `llamadart` for model loading and streamed generation; `llama_flutter_android` has been removed. The existing Dio-based model download, progress reporting, GGUF validation, and cache location are unchanged. `llamadart` requires Dart 3.10.7 or newer and Flutter 3.38.0 or newer.
 
 ## Contributing
 

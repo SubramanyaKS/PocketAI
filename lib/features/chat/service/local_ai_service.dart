@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:llama_flutter_android/llama_flutter_android.dart' as llama;
+import 'package:llamadart/llamadart.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/models/performance_metrics.dart';
@@ -17,7 +17,7 @@ class LocalAiService {
 
   PerformanceMetrics? get performanceMetrics => _performanceMetrics;
 
-  final llama.LlamaController _controller = llama.LlamaController();
+  final LlamaEngine _engine = LlamaEngine(LlamaBackend());
   final Dio _dio = Dio();
 
   bool _isLoaded = false;
@@ -137,14 +137,13 @@ class LocalAiService {
         '${modelSizeMB.toStringAsFixed(1)} MB',
       );
 
-      // Stage 2: Native llama.cpp model initialization.
+      // Stage 2: Initialize the llamadart llama.cpp engine.
       nativeLoadTimer = Stopwatch()..start();
 
       try {
-        await _controller.loadModel(
-          modelPath: modelPath,
-          threads: 4,
-          contextSize: 2048,
+        await _engine.setModel(
+          LlamaModel(ModelSource.path(modelPath)),
+          params: const ModelParams(contextSize: 2048, numberOfThreads: 4),
         );
       } finally {
         nativeLoadTimer.stop();
@@ -176,36 +175,6 @@ class LocalAiService {
     }
   }
 
-  // Future<void> loadModel({
-  //   void Function(int received, int total)? onDownloadProgress,
-  // }) async {
-
-  //   if (_isLoaded) return;
-  //   final stopwatch = Stopwatch()..start();
-
-  //   final modelPath = await _prepareModel(
-  //     onDownloadProgress: onDownloadProgress,
-  //   );
-
-  //   await _controller.loadModel(
-  //     modelPath: modelPath,
-  //     threads: 4,
-  //     contextSize: 2048,
-  //   );
-
-  //     stopwatch.stop();
-
-  //     _performanceMetrics = PerformanceMetrics(
-  //       modelLoadTimeMs: stopwatch.elapsedMilliseconds,
-  //     );
-  //     print(
-  //       'Model loaded in '
-  //       '${_performanceMetrics!.modelLoadTimeSeconds} seconds',
-  //     );
-
-  //   _isLoaded = true;
-  // }
-  //
   Stream<String> askStream(List<ChatMessage> conversation) async* {
     if (!_isLoaded) {
       throw StateError('Model has not been loaded');
@@ -218,11 +187,11 @@ class LocalAiService {
     var visibleCharacters = 0;
     final visibleOutput = StringBuffer();
 
-    final tokenStream = _controller.generateChat(
-      messages: [
-        llama.ChatMessage(
-          role: 'system',
-          content: '''
+    final tokenStream = _engine.create(
+      [
+        LlamaChatMessage.fromText(
+          role: LlamaChatRole.system,
+          text: '''
 You are Pocket AI, a helpful offline assistant.
 
 Rules:
@@ -236,16 +205,15 @@ Rules:
 ''',
         ),
         for (var i = 0; i < conversation.length; i++)
-          llama.ChatMessage(
-            role: conversation[i].role,
-            content:
-                i == conversation.length - 1 && conversation[i].role == 'user'
+          LlamaChatMessage.fromText(
+            role: LlamaChatRole.values.byName(conversation[i].role),
+            text: i == conversation.length - 1 && conversation[i].role == 'user'
                 ? '${conversation[i].content}\n/no_think'
                 : conversation[i].content,
           ),
       ],
-      maxTokens: 128,
-      temperature: 0.3,
+      params: const GenerationParams(maxTokens: 128, temp: 0.3),
+      enableThinking: false,
     );
 
     void recordVisibleText(String text) {
@@ -260,7 +228,7 @@ Rules:
 
     try {
       await for (final chunk in tokenStream) {
-        final cleaned = filter.process(chunk);
+        final cleaned = filter.process(chunk.text);
 
         if (cleaned.isNotEmpty) {
           recordVisibleText(cleaned);

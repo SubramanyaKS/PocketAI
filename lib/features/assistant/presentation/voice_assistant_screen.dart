@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class AssistantScreen extends StatefulWidget {
-  const AssistantScreen({super.key});
+class VoiceAssistantScreen  extends StatefulWidget {
+  const VoiceAssistantScreen ({super.key});
 
   @override
-  State<AssistantScreen> createState() => _AssistantScreenState();
+  State<VoiceAssistantScreen> createState() => _VoiceAssistantScreenState();
 }
 
-class _AssistantScreenState extends State<AssistantScreen> {
+class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(child: Scaffold(
@@ -31,6 +31,21 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 color: Color(0xFF172033),
               ),
             ),
+          ],
+        ),
+      ),
+      body: Center(
+        child: Column(
+          children: [
+            Text("Voice Assistant",style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172033),
+                ),),
+
+                Icon(Icons.waves),
+                
+            
           ],
         ),
       ),

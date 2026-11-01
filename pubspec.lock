@@ -113,6 +113,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.9"
+  dinja:
+    dependency: transitive
+    description:
+      name: dinja
+      sha256: a3addbe07ebb562c062256f7c644ac498ab2ab3d97a85d9f95aafac7f53fa808
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.2"
   dio:
     dependency: "direct main"
     description:
@@ -224,6 +232,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.15.7"
+  http:
+    dependency: transitive
+    description:
+      name: http
+      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
   http_parser:
     dependency: transitive
     description:
@@ -312,14 +328,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
-  llama_flutter_android:
+  llamadart:
     dependency: "direct main"
     description:
-      name: llama_flutter_android
-      sha256: "7f31b242a8a19ad2ee3a7cbf1ed4ac3bb17c19d4e360d19ae1ea24bdd86f5b05"
+      name: llamadart
+      sha256: "40068d27e0fa46611c965ba16c4a73bcfb2c4b5c8245e7a30d5593056c483113"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.6"
+    version: "0.17.1"
   logging:
     dependency: transitive
     description:

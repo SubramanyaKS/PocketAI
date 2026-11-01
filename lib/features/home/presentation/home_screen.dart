@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/assistant/presentation/assistant_screen.dart';
+import 'package:pocket_ai/features/assistant/presentation/voice_assistant_screen.dart';
 import 'package:pocket_ai/features/chat/presentation/chat_screen.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 
@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final List<Widget> _pages = <Widget>[
     ChatScreen(aiService: widget.aiService),
-    const AssistantScreen(),
+    const VoiceAssistantScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -54,9 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: 'Chat',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.smart_toy_outlined),
-                activeIcon: Icon(Icons.smart_toy_rounded),
-                label: 'Assistant',
+                icon: Icon(Icons.mic),
+                activeIcon: Icon(Icons.mic),
+                label: 'VoiceAssistant',
               ),
             ],
           ),
