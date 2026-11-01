@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final List<Widget> _pages = <Widget>[
     ChatScreen(aiService: widget.aiService),
-    const VoiceAssistantScreen(),
+    VoiceAssistantScreen(aiService: widget.aiService),
   ];
 
   void _onItemTapped(int index) {

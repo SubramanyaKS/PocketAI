@@ -15,13 +15,12 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 
 ## Features
 
-- Local-first AI chat experience
-- Automatic model download, GGUF validation, and caching
-- Runs inference on-device without sending prompts to a remote server
-- Streamed responses with recent conversation context
-- Persistent conversations and messages stored in a local SQLite database
-- Speech-to-text voice input and text-to-speech playback for responses
-- Model download, preparation, and native-load timing diagnostics in debug logs
+- **Local-first AI chat**: Text conversation with streaming inference and SQLite chat history persistence.
+- **Dedicated offline voice assistant**: Interactive voice mode (STT ➔ on-device LLM ➔ TTS) featuring multi-state pulsing UI (Idle, Listening, Thinking, Speaking).
+- **On-device speech recognition & synthesis**: Speech-to-text dictation and voice audio playback powered completely offline.
+- **Automatic model download & caching**: Downloads GGUF model on first launch, validates headers, and reuses local storage for subsequent launches.
+- **100% private inference**: Processes all text and voice prompts completely on-device without sending data to cloud servers.
+- **Diagnostics & telemetry**: Detailed TTFT (Time-To-First-Token), download, preparation, and token throughput logging.
 
 ## How it works
 
@@ -70,6 +69,9 @@ flutter run
 │   ├── app.dart
 │   ├── main.dart
 │   ├── features/
+│   │   ├── assistant/
+│   │   │   └── presentation/
+│   │   │       └── voice_assistant_screen.dart
 │   │   ├── chat/
 │   │   │   ├── models/
 │   │   │   │   ├── chat_message.dart
@@ -104,6 +106,17 @@ flutter run
 ├── pubspec.yaml
 └── README.md
 ```
+
+
+## Future Roadmap
+
+Pocket AI is actively evolving towards a full-featured offline assistant:
+- **Offline Alarms & Timers**: Trigger system alarms and countdown timers via native Android intents directly from voice commands.
+- **Offline Reminders & To-Dos**: Save and schedule local reminders in SQLite with device push notifications.
+- **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
+- **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
+- **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
+- **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.
 
 ## Model behavior
 
