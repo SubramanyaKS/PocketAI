@@ -17,9 +17,12 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 
 - **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
 - **Interactive Offline Voice Assistant**: Real-time conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer.
+- **Offline Device Action Tools**:
+  - 🔦 **Flashlight / Torch Control**: Turn on, turn off, or toggle the device flashlight completely offline (*"Turn on flashlight"*, *"Flashlight off"*).
+  - ⏰ **Scheduled Reminders**: Natural language timer and reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
 - **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 - **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
-- **Offline Speech Recognition & Synthesis**: On-device speech-to-text dictation and natural speech playback via speech_to_text and lutter_tts.
+- **Offline Speech Recognition & Synthesis**: On-device speech-to-text dictation and natural speech playback via `speech_to_text` and `flutter_tts`.
 - **Automatic Model Download & Caching**: GGUF model download with SHA/header validation and zero-internet reuse on subsequent launches.
 - **100% Private On-Device Inference**: No prompts, audio, or message data ever leave the device.
 - **Diagnostics & Telemetry**: Logs TTFT (Time-To-First-Token), visible characters/words per second, and inference latency.
@@ -70,8 +73,14 @@ flutter run
 ├── lib/
 │   ├── app.dart
 │   ├── main.dart
+│   ├── llm/
+│   │   └── tool_definitions.dart
 │   ├── provider/
 │   │   └── theme_provider.dart
+│   ├── tools/
+│   │   ├── remainder_tools.dart
+│   │   ├── reminder_parser.dart
+│   │   └── torch_tool.dart
 │   ├── features/
 │   │   ├── assistant/
 │   │   │   └── presentation/
@@ -118,12 +127,12 @@ flutter run
 ## Future Roadmap
 
 Pocket AI is actively evolving towards a full-featured offline assistant:
-- **Offline Alarms & Timers**: Trigger system alarms and countdown timers via native Android intents directly from voice commands.
-- **Offline Reminders & To-Dos**: Save and schedule local reminders in SQLite with device push notifications.
-- **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
-- **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
-- **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
-- **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.
+- [x] **Offline Device Tools**: Flashlight / torch controls and scheduled reminders with local notifications & SQLite.
+- [ ] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice commands.
+- [ ] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
+- [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
+- [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
+- [ ] **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.
 
 ## Model behavior
 
