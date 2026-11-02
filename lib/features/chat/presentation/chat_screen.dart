@@ -1,3 +1,4 @@
+import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,6 @@ import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
 import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
-import 'package:pocket_ai/provider/theme_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -313,6 +313,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (!mounted) return;
+
+    // Intercept offline reminder command
+    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
+    if (reminderReply != null) {
+      final replyMsg = ChatMessage(
+        conversationId: savedConversationId,
+        role: 'assistant',
+        content: reminderReply,
+        createdAt: DateTime.now(),
+      );
+      await _chatDatabase.saveMessage(replyMsg);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(replyMsg);
+        _isThinking = false;
+      });
+      try {
+        await _refreshConversations();
+      } catch (_) {}
+      return;
+    }
 
     final assistantCreatedAt = DateTime.now();
     final assistantMessageIndex = _messages.length;

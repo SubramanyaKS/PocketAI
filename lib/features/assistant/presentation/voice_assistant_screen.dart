@@ -1,3 +1,4 @@
+import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -42,7 +43,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   final List<String> _quickSuggestions = [
     'What can you do offline?',
     'Tell me a fun quick fact',
-    'Give me a 5-minute study tip',
+    'Remind me to drink water in 10 minutes',
     'How does local AI work?',
   ];
 
@@ -185,12 +186,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _aiResponse = '';
     });
 
+    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
+    if (reminderReply != null) {
+      if (!mounted) return;
+      setState(() {
+        _state = AssistantState.speaking;
+        _statusMessage = 'Reminder scheduled!';
+        _aiResponse = reminderReply;
+      });
+      await _flutterTts.speak(reminderReply);
+      return;
+    }
+
     final conversation = [
       ChatMessage(
         conversationId: 0,
         role: 'user',
-        content:
-            'prompt',
+        content: prompt,
         createdAt: DateTime.now(),
       ),
     ];
