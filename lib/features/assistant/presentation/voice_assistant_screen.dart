@@ -1,3 +1,4 @@
+import 'package:pocket_ai/tools/battery_tool.dart';
 import 'package:pocket_ai/features/assistant/presentation/voice_utils.dart';
 import 'package:pocket_ai/tools/torch_tool.dart';
 import 'package:pocket_ai/tools/reminder_parser.dart';
@@ -39,7 +40,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
   final List<String> _quickSuggestions = [
     'What can you do offline?',
-    'Tell me a fun quick fact',
+    'Check battery status',
     'Remind me to drink water in 10 minutes',
     'Turn on flashlight',
   ];
@@ -208,6 +209,19 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       return;
     }
 
+    // Intercept offline battery query
+    final batteryReply = await BatteryTool.tryExecuteBattery(prompt);
+    if (batteryReply != null) {
+      if (!mounted) return;
+      setState(() {
+        _state = AssistantState.speaking;
+        _statusMessage = 'Battery status';
+        _aiResponse = batteryReply;
+      });
+      await _flutterTts.speak(batteryReply);
+      return;
+    }
+
     final conversation = [
       ChatMessage(
         conversationId: 0,
@@ -268,9 +282,6 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   }
 
 
-
-
-
   Future<void> _stopTts() async {
     await _flutterTts.stop();
     if (mounted && _state == AssistantState.speaking) {
@@ -308,13 +319,6 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     });
     _processWithAi(text);
   }
-
-
-
-
-
-
-
 
 
   @override

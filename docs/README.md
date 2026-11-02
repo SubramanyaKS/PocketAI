@@ -39,6 +39,7 @@ lib/
 │   └── tool_definitions.dart           # Offline function schemas for reminder & torch
 │
 ├── tools/
+│   ├── battery_tool.dart               # Battery level & charging status diagnostics
 │   ├── remainder_tools.dart            # Local notification & alarm scheduling service
 │   ├── reminder_parser.dart            # Offline natural language regex intent extractor
 │   └── torch_tool.dart                 # Device camera flashlight hardware controller
@@ -92,6 +93,7 @@ lib/
 | **Speech-to-Text** | `speech_to_text` | Real-time speech dictation and transcription |
 | **Text-to-Speech** | `flutter_tts` | Offline voice audio synthesis |
 | **Notifications & Alarms** | `flutter_local_notifications` + `timezone` | Exact alarms, device reboots & reminder alerts |
+| **Device Battery & Power** | `battery_plus` | Hardware battery level & charging state |
 | **Hardware Flashlight** | `torch_light` | Device camera LED control |
 
 ---

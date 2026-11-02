@@ -30,6 +30,7 @@ flowchart TD
         ReminderHandler["ReminderParser<br/>(Regex / Deterministic Intent Matcher)"]
         Notifier["NotificationService<br/>(Timezone-Aware Scheduled Alarms)"]
         Torch["TorchService<br/>(Camera Flash Hardware Controller)"]
+        Battery["BatteryTool<br/>(Level & Charging Status Reader)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -40,6 +41,7 @@ flowchart TD
         TTS["Device Speech Synthesizer<br/>(flutter_tts)"]
         AlarmMgr["Android AlarmManager & Receivers<br/>(ScheduledNotificationReceiver)"]
         CameraFlash["Hardware Flash LED<br/>(torch_light)"]
+        BatteryHW["Battery Hardware & Broadcast<br/>(battery_plus)"]
     end
 
     subgraph External_Network ["Remote Services (One-Time Only)"]
@@ -62,12 +64,14 @@ flowchart TD
     ChatScreen -->|Context Window| ChatUtils
     ChatScreen -->|Intercept Intent| ReminderHandler
     ChatScreen -->|Intercept Intent| Torch
+    ChatScreen -->|Intercept Intent| Battery
     ChatScreen -->|General Query| AI
 
     VoiceScreen -->|Voice Input| STT
     VoiceScreen -->|Speech Cleansing| VoiceUtils
     VoiceScreen -->|Intercept Intent| ReminderHandler
     VoiceScreen -->|Intercept Intent| Torch
+    VoiceScreen -->|Intercept Intent| Battery
     VoiceScreen -->|General Query| AI
     VoiceScreen -->|Read Aloud| TTS
 
@@ -81,6 +85,7 @@ flowchart TD
     Notifier --> AlarmMgr
     Notifier -->|Record Reminder| SQLite
     Torch --> CameraFlash
+    Battery --> BatteryHW
     ChatScreen -->|Persist Turn| SQLite
 ```
 
@@ -147,7 +152,14 @@ flowchart TD
     HWSwitch --> ReturnTorchReply[Return Flashlight Confirmation]
     ReturnTorchReply --> DisplayBubble
 
-    CheckTorch -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
+    CheckTorch -- No --> CheckBattery{Matches Battery Query?<br/>e.g., 'check battery'}
+    
+    CheckBattery -- Yes --> ExecBattery[BatteryTool.tryExecuteBattery]
+    ExecBattery --> ReadBattery[Read Battery Level & State via battery_plus]
+    ReadBattery --> ReturnBatReply[Return Battery Percentage & State]
+    ReturnBatReply --> DisplayBubble
+
+    CheckBattery -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
     FormatContext --> SystemPrompt[Inject Role-Tailored System Prompt]
     SystemPrompt --> StreamGen[LocalAiService.askStream]
     StreamGen --> Filter[ThinkFilter: Strip &lt;think&gt; tags]
@@ -180,8 +192,8 @@ sequenceDiagram
     
     VoiceUI->>VoiceUI: Switch State: Thinking
     
-    alt Matches Offline Tool (Reminder / Flashlight)
-        VoiceUI->>Intent: Execute Device Tool
+    alt Matches Offline Tool (Reminder / Flashlight / Battery)
+        VoiceUI->>Intent: Execute Device Tool (Reminder / Torch / Battery)
         Intent-->>VoiceUI: Direct Spoken Confirmation
         VoiceUI->>VoiceUI: Switch State: Speaking
         VoiceUI->>Speaker: flutter_tts.speak(confirmation)
@@ -247,3 +259,4 @@ erDiagram
 | **Exact Alarms** | `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM` | Auto-downgrades from `alarmClock` to `exactAllowWhileIdle` |
 | **Reboot Persistence** | `RECEIVE_BOOT_COMPLETED` | Handled by `ScheduledNotificationBootReceiver` |
 | **Camera Flashlight** | `android.permission.CAMERA` | `TorchLight.isTorchAvailable()` pre-check |
+| **Battery Diagnostics** | None (Standard OS Broadcast) | `BatteryTool.getBatteryInfo()` exception guard |

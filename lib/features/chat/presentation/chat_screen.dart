@@ -1,3 +1,4 @@
+import 'package:pocket_ai/tools/battery_tool.dart';
 import 'package:pocket_ai/features/chat/service/chat_utils.dart';
 import 'package:pocket_ai/tools/torch_tool.dart';
 import 'package:pocket_ai/tools/reminder_parser.dart';
@@ -310,6 +311,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         conversationId: savedConversationId,
         role: 'assistant',
         content: torchReply,
+        createdAt: DateTime.now(),
+      );
+      await _chatDatabase.saveMessage(replyMsg);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(replyMsg);
+        _isThinking = false;
+      });
+      try {
+        await _refreshConversations();
+      } catch (_) {}
+      return;
+    }
+
+    // Intercept offline battery query
+    final batteryReply = await BatteryTool.tryExecuteBattery(prompt);
+    if (batteryReply != null) {
+      final replyMsg = ChatMessage(
+        conversationId: savedConversationId,
+        role: 'assistant',
+        content: batteryReply,
         createdAt: DateTime.now(),
       );
       await _chatDatabase.saveMessage(replyMsg);

@@ -31,5 +31,14 @@ const List<Map<String, dynamic>> toolDefinitions = [
       },
       "required": ["action"]
     }
+  },
+  {
+  "name": "get_battery_info",
+  "description": "Get the current device battery percentage and charging status.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
   }
+}
 ];
