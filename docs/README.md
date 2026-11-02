@@ -1,81 +1,112 @@
-# Pocket AI developer documentation
+# Pocket AI Developer Documentation
 
-Pocket AI is a Flutter application that runs a GGUF language model locally with
-`llamadart` (llama.cpp). This documentation describes the current implementation;
-for planned work, see the [project roadmap](../FUTURE_ROADMAP.md).
+Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first mobile AI assistant built with Flutter and embedded `llama.cpp` (`llamadart`).
 
-## Documentation
+---
 
-- [Architecture and runtime flows](architecture.md) — component diagram, model
-  setup, chat and voice flows, and local persistence.
-- [Project README](../README.md) — prerequisites, installation, and running the
-  app.
+## 📚 Documentation Index
 
-## Source layout
+1. **[Architecture & Technical Specifications](architecture.md)**
+   - High-Level Multi-Tier Component Diagram
+   - Model Preparation, Validation, and Lifecycle Flow
+   - Tool Interception & Deterministic Execution Pipeline
+   - Full-Duplex Voice Assistant Sequence Diagram
+   - SQLite Schema & Entity-Relationship Diagram (ERD)
+   - Android Permissions & Hardware Guard Matrix
+
+2. **[Project Overview & Quickstart](../README.md)**
+   - Prerequisites & Setup Guide
+   - Feature Highlights
+   - Build & Run Instructions
+
+3. **[Future Project Roadmap](../FUTURE_ROADMAP.md)**
+   - Completed Milestones
+   - Upcoming Engineering Phases (RAG, Streaming Audio Queue, Multi-Model Manager)
+
+---
+
+## 🗂️ Clean Source Directory Structure
 
 ```text
 lib/
-├── main.dart                         # Flutter and notification initialization
-├── app.dart                          # App shell and theme selection
-├── provider/theme_provider.dart      # Riverpod theme state
-├── utils/                            # App theme and model constants
-├── tools/                            # Reminder parsing/scheduling and torch control
-├── llm/                              # LLM tool schema definitions
-└── features/
-    ├── model/presentation/           # Model download/load and startup UI
-    ├── home/presentation/            # Chat/voice navigation
-    ├── chat/
-    │   ├── models/                   # Chat and performance data
-    │   ├── presentation/             # Chat UI and message orchestration
-    │   ├── service/                  # Local inference, SQLite, and chat utilities
-    │   └── widgets/                  # Chat-specific widgets
-    ├── assistant/presentation/       # Voice assistant and voice utilities
-    └── settings/presentation/        # Appearance settings
-
-test/
-├── widget_test.dart
-└── think_filter_test.dart
+├── main.dart                           # Flutter bindings & notification initialization
+├── app.dart                            # MaterialApp root, route setup & theme definitions
+│
+├── provider/
+│   └── theme_provider.dart             # Riverpod ThemeNotifier (System / Light / Dark)
+│
+├── llm/
+│   └── tool_definitions.dart           # Offline function schemas for reminder & torch
+│
+├── tools/
+│   ├── remainder_tools.dart            # Local notification & alarm scheduling service
+│   ├── reminder_parser.dart            # Offline natural language regex intent extractor
+│   └── torch_tool.dart                 # Device camera flashlight hardware controller
+│
+├── features/
+│   ├── model/presentation/
+│   │   └── model_setup_screen.dart     # Download progress & model preparation screen
+│   │
+│   ├── home/presentation/
+│   │   ├── home_screen.dart            # Tab scaffold & bottom navigation bar
+│   │   └── welcome_screen.dart         # Initial onboard welcome widget
+│   │
+│   ├── chat/
+│   │   ├── models/
+│   │   │   ├── chat_message.dart       # Message entity (role, content, timestamp)
+│   │   │   └── performance_metrics.dart# Diagnostics (TTFT, tokens/sec, throughput)
+│   │   ├── presentation/
+│   │   │   └── chat_screen.dart        # Chat UI, history drawer & message dispatcher
+│   │   ├── service/
+│   │   │   ├── chat_database.dart      # SQLite database (conversations, messages, reminders)
+│   │   │   ├── chat_utils.dart         # Context pruning & title truncation utilities
+│   │   │   ├── local_ai_service.dart   # LlamaEngine wrapper, streaming & prompt manager
+│   │   │   └── think_filter.dart       # DeepSeek/Qwen <think> tag stream sanitizer
+│   │   └── widgets/
+│   │       ├── chat_empty_widget.dart  # Empty state with ready-to-test starter prompts
+│   │       └── prompt_suggestion.dart  # Interactive suggestion chip component
+│   │
+│   ├── assistant/presentation/
+│   │   ├── voice_assistant_screen.dart # Interactive voice UI with animated orb & wave bars
+│   │   └── voice_utils.dart            # Spoken text sanitization & visual state styling
+│   │
+│   └── settings/presentation/
+│       └── settings_screen.dart        # Appearance settings & privacy verification
+│
+└── utils/
+    ├── constant.dart                   # GGUF download URL, filename & storage constants
+    └── theme.dart                      # Core color palettes & text styling rules
 ```
 
-## Runtime dependencies
+---
 
-The main integrations are:
+## ⚙️ Core Technology Stack
 
-| Concern | Implementation |
-| --- | --- |
-| Local model inference | `llamadart`, backed by llama.cpp |
-| Initial model download | `dio` |
-| Model and database file locations | `path_provider`, `path` |
-| Chat and reminder persistence | `sqflite` |
-| Theme state | `flutter_riverpod` |
-| Speech input and output | `speech_to_text`, `flutter_tts` |
-| Scheduled reminder notifications | `flutter_local_notifications`, `timezone` |
-| Flashlight actions | `torch_light` |
+| Domain | Technology / Package | Role & Responsibility |
+|---|---|---|
+| **Language & Framework** | Dart 3.10+ / Flutter 3.38+ | Cross-platform core framework |
+| **Local Model Engine** | `llamadart` (`llama.cpp`) | On-device 4-thread CPU GGUF inference |
+| **Model Download & Cache** | `dio` + `path_provider` | Download with progress & local file storage |
+| **State Management** | `flutter_riverpod` | Unified theme state management |
+| **Persistence** | `sqflite` + `path` | Local SQLite database (`chat_history.db`) |
+| **Speech-to-Text** | `speech_to_text` | Real-time speech dictation and transcription |
+| **Text-to-Speech** | `flutter_tts` | Offline voice audio synthesis |
+| **Notifications & Alarms** | `flutter_local_notifications` + `timezone` | Exact alarms, device reboots & reminder alerts |
+| **Hardware Flashlight** | `torch_light` | Device camera LED control |
 
-Dependency versions and SDK constraints are defined in [`pubspec.yaml`](../pubspec.yaml).
+---
 
-## Local data and network use
+## 🧪 Local Quality & Testing
 
-- The Qwen3 0.6B Q8_0 GGUF is downloaded from Hugging Face when no valid cached
-  model is present. The app stores it under the platform's application support
-  directory in `models/`.
-- The model is accepted when its first four bytes match the GGUF magic header.
-  The current code does not perform a checksum or full-file integrity check.
-- Model inference and chat-history storage are local. Chat history and reminders
-  are stored in the `chat_history.db` SQLite database.
-- Speech recognition behavior depends on the platform speech service and its
-  configuration; it is separate from LLM inference.
-
-## Development checks
-
-Run these commands from the repository root after installing the Flutter SDK
-version required by `pubspec.yaml`:
+To ensure stability across the pipeline, run the project analysis and test suite:
 
 ```bash
+# 1. Fetch dependencies
 flutter pub get
+
+# 2. Run static analysis (enforces lint rules and type safety)
 flutter analyze
+
+# 3. Execute unit and widget tests
 flutter test
 ```
-
-The checked-in automated tests cover app startup's model-setup screen and the
-streaming `ThinkFilter`.
