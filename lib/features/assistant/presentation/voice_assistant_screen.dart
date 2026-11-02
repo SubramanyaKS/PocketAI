@@ -1,3 +1,6 @@
+import 'package:pocket_ai/features/assistant/presentation/voice_utils.dart';
+import 'package:pocket_ai/tools/torch_tool.dart';
+import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -7,12 +10,7 @@ import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-enum AssistantState {
-  idle,
-  listening,
-  thinking,
-  speaking,
-}
+
 
 class VoiceAssistantScreen extends StatefulWidget {
   const VoiceAssistantScreen({super.key, required this.aiService});
@@ -42,8 +40,8 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   final List<String> _quickSuggestions = [
     'What can you do offline?',
     'Tell me a fun quick fact',
-    'Give me a 5-minute study tip',
-    'How does local AI work?',
+    'Remind me to drink water in 10 minutes',
+    'Turn on flashlight',
   ];
 
   @override
@@ -185,12 +183,36 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _aiResponse = '';
     });
 
+    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
+    if (reminderReply != null) {
+      if (!mounted) return;
+      setState(() {
+        _state = AssistantState.speaking;
+        _statusMessage = 'Reminder scheduled!';
+        _aiResponse = reminderReply;
+      });
+      await _flutterTts.speak(reminderReply);
+      return;
+    }
+
+    // Intercept offline flashlight / torch command
+    final torchReply = await TorchService.tryExecuteTorch(prompt);
+    if (torchReply != null) {
+      if (!mounted) return;
+      setState(() {
+        _state = AssistantState.speaking;
+        _statusMessage = 'Flashlight action';
+        _aiResponse = torchReply;
+      });
+      await _flutterTts.speak(torchReply);
+      return;
+    }
+
     final conversation = [
       ChatMessage(
         conversationId: 0,
         role: 'user',
-        content:
-            'prompt',
+        content: prompt,
         createdAt: DateTime.now(),
       ),
     ];
@@ -208,7 +230,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
           _aiResponse = buffer.toString();
         });
 
-        if (!hasStartedSpeaking && _containsSentenceEnding(buffer.toString())) {
+        if (!hasStartedSpeaking && VoiceUtils.containsSentenceEnding(buffer.toString())) {
           hasStartedSpeaking = true;
           setState(() {
             _state = AssistantState.speaking;
@@ -219,7 +241,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
       if (!mounted) return;
 
-      final finalText = _cleanSpokenText(buffer.toString());
+      final finalText = VoiceUtils.cleanSpokenText(buffer.toString());
       if (finalText.isEmpty) {
         setState(() {
           _state = AssistantState.idle;
@@ -245,18 +267,9 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     }
   }
 
-  bool _containsSentenceEnding(String text) {
-    return text.contains('.') || text.contains('?') || text.contains('!');
-  }
 
-  String _cleanSpokenText(String input) {
-    return input
-        .replaceAll(RegExp(r'\*+'), '')
-        .replaceAll(RegExp(r'#+'), '')
-        .replaceAll(RegExp(r'`+'), '')
-        .replaceAll(RegExp(r'\[.*?\]'), '')
-        .trim();
-  }
+
+
 
   Future<void> _stopTts() async {
     await _flutterTts.stop();
@@ -296,57 +309,13 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     _processWithAi(text);
   }
 
-  List<Color> _getGradients(bool isDark) {
-    switch (_state) {
-      case AssistantState.idle:
-        return const [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899)];
-      case AssistantState.listening:
-        return const [Color(0xFFEF4444), Color(0xFFF43F5E), Color(0xFFFB923C)];
-      case AssistantState.thinking:
-        return const [Color(0xFFF59E0B), Color(0xFFEAB308), Color(0xFF3B82F6)];
-      case AssistantState.speaking:
-        return const [Color(0xFF10B981), Color(0xFF06B6D4), Color(0xFF6366F1)];
-    }
-  }
 
-  Color _getPrimaryColor() {
-    switch (_state) {
-      case AssistantState.idle:
-        return const Color(0xFF6366F1);
-      case AssistantState.listening:
-        return const Color(0xFFEF4444);
-      case AssistantState.thinking:
-        return const Color(0xFFF59E0B);
-      case AssistantState.speaking:
-        return const Color(0xFF10B981);
-    }
-  }
 
-  IconData _getButtonIcon() {
-    switch (_state) {
-      case AssistantState.idle:
-        return Icons.mic_rounded;
-      case AssistantState.listening:
-        return Icons.stop_rounded;
-      case AssistantState.thinking:
-        return Icons.auto_awesome_rounded;
-      case AssistantState.speaking:
-        return Icons.graphic_eq_rounded;
-    }
-  }
 
-  String _getSubtitleTip() {
-    switch (_state) {
-      case AssistantState.idle:
-        return 'Tap orb to start speaking';
-      case AssistantState.listening:
-        return 'Tap to finish & process';
-      case AssistantState.thinking:
-        return 'Analyzing & preparing reply...';
-      case AssistantState.speaking:
-        return 'Tap orb to interrupt';
-    }
-  }
+
+
+
+
 
   @override
   void dispose() {
@@ -361,8 +330,8 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final gradientColors = _getGradients(isDark);
-    final primaryColor = _getPrimaryColor();
+    final gradientColors = VoiceUtils.getGradients(_state, isDark);
+    final primaryColor = VoiceUtils.getPrimaryColor(_state);
     final isPulsing =
         _state == AssistantState.listening || _state == AssistantState.speaking;
 
@@ -922,7 +891,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
                         ),
                         child: Center(
                           child: Icon(
-                            _getButtonIcon(),
+                            VoiceUtils.getButtonIcon(_state),
                             color: Colors.white,
                             size: 38,
                           ),
@@ -937,7 +906,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
             const SizedBox(height: 8),
 
             Text(
-              _getSubtitleTip(),
+              VoiceUtils.getSubtitleTip(_state),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,

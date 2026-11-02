@@ -271,22 +271,22 @@ Guidelines:
 
       final seconds = totalMs / 1000.0;
 
-      print(
+      debugPrint(
         '[PERF] TTFT: '
         '${timeToFirstVisibleTextMs == null ? "No visible output" : "$timeToFirstVisibleTextMs ms"}',
       );
 
-      print('[PERF] Total generation time: ${seconds.toStringAsFixed(2)} s');
-      print('[PERF] Visible characters: $visibleCharacters');
-      print('[PERF] Visible words (approx): $wordCount');
+      debugPrint('[PERF] Total generation time: ${seconds.toStringAsFixed(2)} s');
+      debugPrint('[PERF] Visible characters: $visibleCharacters');
+      debugPrint('[PERF] Visible words (approx): $wordCount');
 
       if (seconds > 0) {
-        print(
+        debugPrint(
           '[PERF] Visible output speed: '
           '${(wordCount / seconds).toStringAsFixed(2)} words/s',
         );
 
-        print(
+        debugPrint(
           '[PERF] Character throughput: '
           '${(visibleCharacters / seconds).toStringAsFixed(2)} chars/s',
         );

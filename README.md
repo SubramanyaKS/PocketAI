@@ -16,12 +16,15 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 ## Features
 
 - **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
-- **Interactive Offline Voice Assistant**: Real-time conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer.
+- **Voice Assistant**: Conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer. Speech-service availability depends on the device.
+- **Offline Device Action Tools**:
+  - 🔦 **Flashlight / Torch Control**: Turn on, turn off, or toggle the device flashlight completely offline (*"Turn on flashlight"*, *"Flashlight off"*).
+  - ⏰ **Scheduled Reminders**: Natural language timer and reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
 - **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 - **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
-- **Offline Speech Recognition & Synthesis**: On-device speech-to-text dictation and natural speech playback via speech_to_text and lutter_tts.
-- **Automatic Model Download & Caching**: GGUF model download with SHA/header validation and zero-internet reuse on subsequent launches.
-- **100% Private On-Device Inference**: No prompts, audio, or message data ever leave the device.
+- **Speech Input & Synthesis**: Speech recognition and natural speech playback via `speech_to_text` and `flutter_tts`; availability depends on the device's configured speech services.
+- **Automatic Model Download & Caching**: The GGUF model is downloaded once, checked for its GGUF header, and reused on subsequent launches.
+- **On-Device Inference**: Prompts are processed by the local model. Internet is required to download the model if it is not already cached.
 - **Diagnostics & Telemetry**: Logs TTFT (Time-To-First-Token), visible characters/words per second, and inference latency.
 
 ## How it works
@@ -60,74 +63,32 @@ flutter pub get
 flutter run
 ```
 
-## Project structure
+## Project structure and documentation
 
 ```text
-.
-├── android/
-├── assets/
-│   └── icons/
-├── lib/
-│   ├── app.dart
-│   ├── main.dart
-│   ├── provider/
-│   │   └── theme_provider.dart
-│   ├── features/
-│   │   ├── assistant/
-│   │   │   └── presentation/
-│   │   │       └── voice_assistant_screen.dart
-│   │   ├── chat/
-│   │   │   ├── models/
-│   │   │   │   ├── chat_message.dart
-│   │   │   │   └── performance_metrics.dart
-│   │   │   ├── presentation/
-│   │   │   │   └── chat_screen.dart
-│   │   │   ├── service/
-│   │   │   │   ├── chat_database.dart
-│   │   │   │   ├── local_ai_service.dart
-│   │   │   │   └── think_filter.dart
-│   │   │   └── widgets/
-│   │   │       ├── chat_empty_widget.dart
-│   │   │       └── prompt_suggestion.dart
-│   │   ├── home/
-│   │   │   └── presentation/
-│   │   │       └── home_screen.dart
-│   │   ├── model/
-│   │   │   └── presentation/
-│   │   │       └── model_setup_screen.dart
-│   │   └── settings/
-│   │       └── presentation/
-│   │           └── seetings_screen.dart
-│   └── utils/
-│       └── constant.dart
-├── test/
-│   ├── think_filter_test.dart
-│   └── widget_test.dart
-├── ios/
-├── linux/
-├── macos/
-├── web/
-├── windows/
-├── analysis_options.yaml
-├── pubspec.lock
-├── pubspec.yaml
-└── README.md
+lib/       # Flutter app, feature screens, services, and device integrations
+test/      # Widget and unit tests
+assets/    # App icon and other bundled assets
 ```
+
+For the full source layout, dependency roles, runtime flows, data storage, and
+the architecture diagram, see the [developer documentation](docs/README.md)
+and [architecture guide](docs/architecture.md).
 
 
 ## Future Roadmap
 
 Pocket AI is actively evolving towards a full-featured offline assistant:
-- **Offline Alarms & Timers**: Trigger system alarms and countdown timers via native Android intents directly from voice commands.
-- **Offline Reminders & To-Dos**: Save and schedule local reminders in SQLite with device push notifications.
-- **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
-- **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
-- **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
-- **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.
+- [x] **Offline Device Tools**: Flashlight / torch controls and scheduled reminders with local notifications & SQLite.
+- [ ] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice commands.
+- [ ] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
+- [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
+- [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
+- [ ] **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.
 
 ## Model behavior
 
-The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service validates the GGUF header before loading the model with llamadart. Inference uses a 2,048-token context, four generation threads, and configurable max token limits (256 tokens for chat, 120 tokens for voice assistant) with specialized system prompts. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
+The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service checks the GGUF header before loading the model with llamadart; it does not currently verify a checksum or the full model file. Inference uses a 2,048-token context, four generation threads, and configurable max token limits (256 tokens for chat, 120 tokens for voice assistant) with specialized system prompts. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
 
 ## Inference package migration
 

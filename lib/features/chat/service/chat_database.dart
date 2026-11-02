@@ -18,7 +18,7 @@ class ChatDatabase {
 
     _database = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -44,6 +44,29 @@ class ChatDatabase {
               ON DELETE CASCADE
           )
         ''');
+
+        await db.execute('''
+          CREATE TABLE reminders (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            scheduled_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            is_completed INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS reminders (
+              id INTEGER PRIMARY KEY,
+              title TEXT NOT NULL,
+              scheduled_at INTEGER NOT NULL,
+              created_at INTEGER NOT NULL,
+              is_completed INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+        }
       },
     );
 
@@ -62,21 +85,21 @@ class ChatDatabase {
     });
   }
 
-  // Save a user or assistant message.
+  // Save a message into one conversation and update the timestamp.
   Future<int> saveMessage(ChatMessage message) async {
     final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
 
     return db.transaction((txn) async {
       final id = await txn.insert('messages', message.toMap());
-
-      final updated = await txn.update(
+      final updatedRows = await txn.update(
         'conversations',
-        {'updated_at': DateTime.now().millisecondsSinceEpoch},
+        {'updated_at': now},
         where: 'id = ?',
         whereArgs: [message.conversationId],
       );
 
-      if (updated == 0) {
+      if (updatedRows == 0) {
         throw StateError(
           'Conversation ${message.conversationId} does not exist.',
         );
@@ -112,5 +135,52 @@ class ChatDatabase {
     final db = await database;
 
     await db.delete('conversations', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ------------------ Reminders Methods ------------------
+
+  Future<void> saveReminder({
+    required int id,
+    required String title,
+    required int scheduledAt,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    await db.insert(
+      'reminders',
+      {
+        'id': id,
+        'title': title,
+        'scheduled_at': scheduledAt,
+        'created_at': now,
+        'is_completed': 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getActiveReminders() async {
+    final db = await database;
+    return db.query(
+      'reminders',
+      where: 'is_completed = 0',
+      orderBy: 'scheduled_at ASC',
+    );
+  }
+
+  Future<void> deleteReminder(int id) async {
+    final db = await database;
+    await db.delete('reminders', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> markReminderCompleted(int id) async {
+    final db = await database;
+    await db.update(
+      'reminders',
+      {'is_completed': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }

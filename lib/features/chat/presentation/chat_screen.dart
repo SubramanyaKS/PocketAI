@@ -1,3 +1,6 @@
+import 'package:pocket_ai/features/chat/service/chat_utils.dart';
+import 'package:pocket_ai/tools/torch_tool.dart';
+import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -9,7 +12,6 @@ import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
 import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
-import 'package:pocket_ai/provider/theme_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -207,41 +209,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  String _conversationTitle(String prompt) {
-    final characters = prompt.runes.toList();
-    if (characters.length <= 48) return prompt;
-    return '${String.fromCharCodes(characters.take(48))}...';
-  }
 
-  List<ChatMessage> _buildContextMessages(
-    String prompt,
-    ChatMessage currentMessage,
-  ) {
-    const maxInputCharacters = 3000;
-    const maxHistoryMessages = 6;
-    var remainingHistoryCharacters = maxInputCharacters - prompt.runes.length;
-    final history = <ChatMessage>[];
-    final previousMessages = _messages.take(_messages.length - 1).toList();
-
-    for (final message in previousMessages.reversed) {
-      if (history.length == maxHistoryMessages ||
-          remainingHistoryCharacters <= 0) {
-        break;
-      }
-      if ((message.role != 'user' && message.role != 'assistant') ||
-          message.content.trim().isEmpty) {
-        continue;
-      }
-
-      final messageCharacters = message.content.runes.length;
-      if (messageCharacters > remainingHistoryCharacters) break;
-
-      history.add(message);
-      remainingHistoryCharacters -= messageCharacters;
-    }
-
-    return [...history.reversed, currentMessage];
-  }
 
   Future<void> _sendMessage() async {
     final prompt = _controller.text.trim();
@@ -262,7 +230,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       conversationId ??= await _chatDatabase.createConversation(
-        _conversationTitle(prompt),
+        ChatUtils.formatConversationTitle(prompt),
       );
 
       userMessage = ChatMessage(
@@ -314,10 +282,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (!mounted) return;
 
+    // Intercept offline reminder command
+    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
+    if (reminderReply != null) {
+      final replyMsg = ChatMessage(
+        conversationId: savedConversationId,
+        role: 'assistant',
+        content: reminderReply,
+        createdAt: DateTime.now(),
+      );
+      await _chatDatabase.saveMessage(replyMsg);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(replyMsg);
+        _isThinking = false;
+      });
+      try {
+        await _refreshConversations();
+      } catch (_) {}
+      return;
+    }
+
+    // Intercept offline flashlight / torch command
+    final torchReply = await TorchService.tryExecuteTorch(prompt);
+    if (torchReply != null) {
+      final replyMsg = ChatMessage(
+        conversationId: savedConversationId,
+        role: 'assistant',
+        content: torchReply,
+        createdAt: DateTime.now(),
+      );
+      await _chatDatabase.saveMessage(replyMsg);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(replyMsg);
+        _isThinking = false;
+      });
+      try {
+        await _refreshConversations();
+      } catch (_) {}
+      return;
+    }
+
     final assistantCreatedAt = DateTime.now();
     final assistantMessageIndex = _messages.length;
     final responseBuffer = StringBuffer();
-    final contextMessages = _buildContextMessages(prompt, userMessage);
+    final contextMessages = ChatUtils.buildContextMessages(messages: _messages, prompt: prompt, currentMessage: userMessage);
 
     try {
       await for (final chunk in widget.aiService.askStream(contextMessages)) {
