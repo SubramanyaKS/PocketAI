@@ -1,6 +1,5 @@
+import 'package:pocket_ai/tools/tool_registry.dart';
 import 'package:pocket_ai/features/assistant/presentation/voice_utils.dart';
-import 'package:pocket_ai/tools/torch_tool.dart';
-import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -39,7 +38,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
   final List<String> _quickSuggestions = [
     'What can you do offline?',
-    'Tell me a fun quick fact',
+    'Check battery status',
     'Remind me to drink water in 10 minutes',
     'Turn on flashlight',
   ];
@@ -183,28 +182,16 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _aiResponse = '';
     });
 
-    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
-    if (reminderReply != null) {
+    // Dispatch through Central Tool Registry
+    final toolResult = await ToolRegistry.dispatch(prompt);
+    if (toolResult.handled && toolResult.reply != null) {
       if (!mounted) return;
       setState(() {
         _state = AssistantState.speaking;
-        _statusMessage = 'Reminder scheduled!';
-        _aiResponse = reminderReply;
+        _statusMessage = 'Action completed';
+        _aiResponse = toolResult.reply!;
       });
-      await _flutterTts.speak(reminderReply);
-      return;
-    }
-
-    // Intercept offline flashlight / torch command
-    final torchReply = await TorchService.tryExecuteTorch(prompt);
-    if (torchReply != null) {
-      if (!mounted) return;
-      setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Flashlight action';
-        _aiResponse = torchReply;
-      });
-      await _flutterTts.speak(torchReply);
+      await _flutterTts.speak(toolResult.reply!);
       return;
     }
 
@@ -268,9 +255,6 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   }
 
 
-
-
-
   Future<void> _stopTts() async {
     await _flutterTts.stop();
     if (mounted && _state == AssistantState.speaking) {
@@ -308,13 +292,6 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     });
     _processWithAi(text);
   }
-
-
-
-
-
-
-
 
 
   @override

@@ -27,9 +27,13 @@ flowchart TD
         Think["ThinkFilter<br/>(CoT / &lt;think&gt; Stream Sanitizer)"]
         ChatUtils["ChatUtils<br/>(Context Pruning & Title Truncation)"]
         VoiceUtils["VoiceUtils<br/>(Spoken Text Sanitizer & State Styling)"]
-        ReminderHandler["ReminderParser<br/>(Regex / Deterministic Intent Matcher)"]
+        Registry["ToolRegistry<br/>(Central Tool Dispatcher & Schema Aggregator)"]
+        PocketContract["PocketTool Contract<br/>(Polymorphic Tool Execution)"]
+        ReminderHandler["ReminderTool<br/>(Regex / Deterministic Intent Matcher)"]
         Notifier["NotificationService<br/>(Timezone-Aware Scheduled Alarms)"]
-        Torch["TorchService<br/>(Camera Flash Hardware Controller)"]
+        Torch["TorchTool<br/>(Camera Flash Hardware Controller)"]
+        Battery["BatteryTool<br/>(Level & Charging Status Reader)"]
+        AlarmTimer["AlarmTimerTool<br/>(Native Android Clock & Timer Intent Dispatcher)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -40,6 +44,8 @@ flowchart TD
         TTS["Device Speech Synthesizer<br/>(flutter_tts)"]
         AlarmMgr["Android AlarmManager & Receivers<br/>(ScheduledNotificationReceiver)"]
         CameraFlash["Hardware Flash LED<br/>(torch_light)"]
+        BatteryHW["Battery Hardware & Broadcast<br/>(battery_plus)"]
+        ClockApp["Android System Clock App<br/>(ACTION_SET_ALARM / ACTION_SET_TIMER)"]
     end
 
     subgraph External_Network ["Remote Services (One-Time Only)"]
@@ -60,16 +66,20 @@ flowchart TD
     ThemeState -.->|Rebuilds UI| App
 
     ChatScreen -->|Context Window| ChatUtils
-    ChatScreen -->|Intercept Intent| ReminderHandler
-    ChatScreen -->|Intercept Intent| Torch
-    ChatScreen -->|General Query| AI
+    ChatScreen -->|Intercept Intent| Registry
+    ChatScreen -->|Fallback / General Query| AI
 
     VoiceScreen -->|Voice Input| STT
     VoiceScreen -->|Speech Cleansing| VoiceUtils
-    VoiceScreen -->|Intercept Intent| ReminderHandler
-    VoiceScreen -->|Intercept Intent| Torch
-    VoiceScreen -->|General Query| AI
+    VoiceScreen -->|Intercept Intent| Registry
+    VoiceScreen -->|Fallback / General Query| AI
     VoiceScreen -->|Read Aloud| TTS
+
+    Registry --> PocketContract
+    PocketContract --> Torch
+    PocketContract --> ReminderHandler
+    PocketContract --> Battery
+    PocketContract --> AlarmTimer
 
     AI --> Think
     AI --> LlamaEngine
@@ -81,6 +91,8 @@ flowchart TD
     Notifier --> AlarmMgr
     Notifier -->|Record Reminder| SQLite
     Torch --> CameraFlash
+    Battery --> BatteryHW
+    AlarmTimer -->|Launch Intent| ClockApp
     ChatScreen -->|Persist Turn| SQLite
 ```
 
@@ -128,26 +140,36 @@ sequenceDiagram
 
 ## 3. End-to-End Chat & Tool Interception Pipeline
 
-User prompts undergo deterministic intent interception before routing to the LLM. This prevents hallucination for device actions, ensures immediate execution, and conserves mobile battery.
+User prompts undergo deterministic intent interception via `ToolRegistry` before routing to the LLM. This prevents hallucination for device actions, ensures immediate execution, and conserves mobile battery.
 
 ```mermaid
 flowchart TD
-    Input([User Prompt Submitted]) --> CheckReminder{Matches Reminder Pattern?<br/>e.g., 'remind me in 10m'}
+    Input([User Prompt Submitted]) --> Dispatch[ToolRegistry.dispatch: Iterate Registered PocketTools]
     
-    CheckReminder -- Yes --> ExecReminder[ReminderParser.tryExecuteReminder]
-    ExecReminder --> SchedNotif[NotificationService: Schedule Local Alarm]
+    Dispatch --> CheckTorch{Matches TorchTool?<br/>e.g., 'turn on flashlight'}
+    CheckTorch -- Yes --> ExecTorch[TorchTool: Hardware Flash LED Toggled]
+    ExecTorch --> ReturnTorchReply[Return Flashlight Confirmation]
+    ReturnTorchReply --> DisplayBubble[Render UI Message / Read Out Loud]
+
+    CheckTorch -- No --> CheckReminder{Matches ReminderTool?<br/>e.g., 'remind me in 10m'}
+    CheckReminder -- Yes --> ExecReminder[ReminderTool: Schedule Local Alarm]
+    ExecReminder --> SchedNotif[NotificationService: Schedule Local Notification]
     SchedNotif --> SaveRemindDB[(SQLite: Save to reminders table)]
-    SaveRemindDB --> ReturnRemindReply[Return Conversational Confirmation]
-    ReturnRemindReply --> DisplayBubble[Render UI Message / Read Out Loud]
+    SaveRemindDB --> ReturnRemindReply[Return Reminder Confirmation]
+    ReturnRemindReply --> DisplayBubble
 
-    CheckReminder -- No --> CheckTorch{Matches Torch Pattern?<br/>e.g., 'turn on flashlight'}
-    
-    CheckTorch -- Yes --> ExecTorch[TorchService.tryExecuteTorch]
-    ExecTorch --> HWSwitch[Hardware Camera LED Toggled]
-    HWSwitch --> ReturnTorchReply[Return Flashlight Confirmation]
-    ReturnTorchReply --> DisplayBubble
+    CheckReminder -- No --> CheckBattery{Matches BatteryTool?<br/>e.g., 'check battery'}
+    CheckBattery -- Yes --> ExecBattery[BatteryTool: Read Battery Level & State]
+    ExecBattery --> ReturnBatReply[Return Battery Percentage & State]
+    ReturnBatReply --> DisplayBubble
 
-    CheckTorch -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
+    CheckBattery -- No --> CheckAlarm{Matches AlarmTimerTool?<br/>e.g., 'set alarm 7am', 'timer 10m'}
+    CheckAlarm -- Yes --> ExecAlarm[AlarmTimerTool: Fire System Intent]
+    ExecAlarm --> ClockAppAction[ACTION_SET_ALARM / ACTION_SET_TIMER]
+    ClockAppAction --> ReturnAlarmReply[Return Alarm / Timer Confirmation]
+    ReturnAlarmReply --> DisplayBubble
+
+    CheckAlarm -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
     FormatContext --> SystemPrompt[Inject Role-Tailored System Prompt]
     SystemPrompt --> StreamGen[LocalAiService.askStream]
     StreamGen --> Filter[ThinkFilter: Strip &lt;think&gt; tags]
@@ -167,7 +189,7 @@ sequenceDiagram
     actor User
     participant Mic as STT (speech_to_text)
     participant VoiceUI as VoiceAssistantScreen
-    participant Intent as Reminder / Torch Handlers
+    participant Registry as ToolRegistry (PocketTool Dispatcher)
     participant AI as LocalAiService
     participant Engine as llama.cpp Native Core
     participant Speaker as TTS (flutter_tts)
@@ -180,11 +202,11 @@ sequenceDiagram
     
     VoiceUI->>VoiceUI: Switch State: Thinking
     
-    alt Matches Offline Tool (Reminder / Flashlight)
-        VoiceUI->>Intent: Execute Device Tool
-        Intent-->>VoiceUI: Direct Spoken Confirmation
+    alt Matches Registered PocketTool (Torch / Reminder / Battery / Alarm / Timer)
+        VoiceUI->>Registry: ToolRegistry.dispatch(prompt)
+        Registry-->>VoiceUI: ToolExecutionResult(handled: true, reply)
         VoiceUI->>VoiceUI: Switch State: Speaking
-        VoiceUI->>Speaker: flutter_tts.speak(confirmation)
+        VoiceUI->>Speaker: flutter_tts.speak(reply)
     else Natural Language Query
         VoiceUI->>AI: askStream(conversation, defaultVoiceSystemPrompt, maxTokens: 120)
         AI->>Engine: Generate token stream (/no_think appended)
@@ -247,3 +269,5 @@ erDiagram
 | **Exact Alarms** | `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM` | Auto-downgrades from `alarmClock` to `exactAllowWhileIdle` |
 | **Reboot Persistence** | `RECEIVE_BOOT_COMPLETED` | Handled by `ScheduledNotificationBootReceiver` |
 | **Camera Flashlight** | `android.permission.CAMERA` | `TorchLight.isTorchAvailable()` pre-check |
+| **Battery Diagnostics** | None (Standard OS Broadcast) | `BatteryTool.getBatteryInfo()` exception guard |
+| **Native Alarms & Timers** | `com.android.alarm.permission.SET_ALARM` | Dispatches `ACTION_SET_ALARM` / `ACTION_SET_TIMER` via `android_intent_plus` (`SKIP_UI: true`) |

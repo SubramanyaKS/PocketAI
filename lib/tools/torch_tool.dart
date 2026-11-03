@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:torch_light/torch_light.dart';
+import 'pocket_tool.dart';
 
 enum TorchAction {
   turnOn,
@@ -7,7 +8,30 @@ enum TorchAction {
   toggle,
 }
 
-class TorchService {
+class TorchTool implements PocketTool {
+  const TorchTool();
+
+  @override
+  String get name => 'torch_control';
+
+  @override
+  Map<String, dynamic> get definition => {
+        "name": name,
+        "description":
+            "Controls the device flashlight / torch (turn on, turn off, or toggle)",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["on", "off", "toggle"],
+              "description": "Flashlight action to perform",
+            }
+          },
+          "required": ["action"],
+        },
+      };
+
   static bool _isOn = false;
   static bool get isOn => _isOn;
 
@@ -78,7 +102,6 @@ class TorchService {
       return TorchAction.toggle;
     }
 
-    // Default to turn on if user simply says "flashlight" or "turn torch"
     return TorchAction.turnOn;
   }
 
@@ -111,4 +134,10 @@ class TorchService {
             : "Flashlight is now turned off.";
     }
   }
+
+  @override
+  Future<String?> tryExecute(String prompt) => tryExecuteTorch(prompt);
 }
+
+/// Backwards compatibility typedef
+typedef TorchService = TorchTool;
