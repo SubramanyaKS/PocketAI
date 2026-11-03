@@ -17,10 +17,12 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 
 - **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
 - **Voice Assistant**: Conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer. Speech-service availability depends on the device.
-- **Offline Device Action Tools**:
+- **Offline Device Action Tools & Registry**:
+  - 🧩 **Central Tool Registry**: Unified, extensible architecture (`PocketTool` contract + `ToolRegistry`) dispatching instant device commands without LLM latency or hallucination.
+  - ⏰ **Native Android Clock Alarms & Timers**: Set system alarms and countdown timers in the phone's native Clock app via Android intents (*"Set an alarm for 7:30 AM"*, *"Wake me up at 6 AM"*, *"Set a timer for 15 minutes"*).
   - 🔋 **Battery Diagnostics**: Check live battery percentage and charging status completely offline (*"What's my battery percentage?"*, *"Check battery status"*).
   - 🔦 **Flashlight / Torch Control**: Turn on, turn off, or toggle the device flashlight completely offline (*"Turn on flashlight"*, *"Flashlight off"*).
-  - ⏰ **Scheduled Reminders**: Natural language timer and reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
+  - 📅 **Scheduled Reminders**: Natural language reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
 - **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 - **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
 - **Speech Input & Synthesis**: Speech recognition and natural speech playback via `speech_to_text` and `flutter_tts`; availability depends on the device's configured speech services.
@@ -80,8 +82,8 @@ and [architecture guide](docs/architecture.md).
 ## Future Roadmap
 
 Pocket AI is actively evolving towards a full-featured offline assistant:
-- [x] **Offline Device Tools**: Flashlight / torch controls, battery diagnostics, and scheduled reminders with local notifications & SQLite.
-- [ ] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice commands.
+- [x] **Offline Device Tools & Central Registry**: Flashlight / torch controls, battery diagnostics, scheduled reminders, and native alarms & timers routed through `ToolRegistry`.
+- [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
 - [ ] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
 - [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
 - [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.

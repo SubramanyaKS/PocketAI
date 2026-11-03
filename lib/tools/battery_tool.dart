@@ -1,6 +1,24 @@
 import 'package:battery_plus/battery_plus.dart';
+import 'pocket_tool.dart';
 
-class BatteryTool {
+class BatteryTool implements PocketTool {
+  const BatteryTool();
+
+  @override
+  String get name => 'get_battery_info';
+
+  @override
+  Map<String, dynamic> get definition => {
+        "name": name,
+        "description":
+            "Get the current device battery percentage and charging status.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+        },
+      };
+
   static final Battery _battery = Battery();
 
   /// Retrieves raw battery info map.
@@ -88,4 +106,7 @@ class BatteryTool {
       return "Your battery is at $level% ($status).";
     }
   }
+
+  @override
+  Future<String?> tryExecute(String prompt) => tryExecuteBattery(prompt);
 }

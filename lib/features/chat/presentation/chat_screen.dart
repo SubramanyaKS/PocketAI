@@ -1,7 +1,5 @@
-import 'package:pocket_ai/tools/battery_tool.dart';
+import 'package:pocket_ai/tools/tool_registry.dart';
 import 'package:pocket_ai/features/chat/service/chat_utils.dart';
-import 'package:pocket_ai/tools/torch_tool.dart';
-import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -283,55 +281,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (!mounted) return;
 
-    // Intercept offline reminder command
-    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
-    if (reminderReply != null) {
+    // Dispatch through Central Tool Registry
+    final toolResult = await ToolRegistry.dispatch(prompt);
+    if (toolResult.handled && toolResult.reply != null) {
       final replyMsg = ChatMessage(
         conversationId: savedConversationId,
         role: 'assistant',
-        content: reminderReply,
-        createdAt: DateTime.now(),
-      );
-      await _chatDatabase.saveMessage(replyMsg);
-      if (!mounted) return;
-      setState(() {
-        _messages.add(replyMsg);
-        _isThinking = false;
-      });
-      try {
-        await _refreshConversations();
-      } catch (_) {}
-      return;
-    }
-
-    // Intercept offline flashlight / torch command
-    final torchReply = await TorchService.tryExecuteTorch(prompt);
-    if (torchReply != null) {
-      final replyMsg = ChatMessage(
-        conversationId: savedConversationId,
-        role: 'assistant',
-        content: torchReply,
-        createdAt: DateTime.now(),
-      );
-      await _chatDatabase.saveMessage(replyMsg);
-      if (!mounted) return;
-      setState(() {
-        _messages.add(replyMsg);
-        _isThinking = false;
-      });
-      try {
-        await _refreshConversations();
-      } catch (_) {}
-      return;
-    }
-
-    // Intercept offline battery query
-    final batteryReply = await BatteryTool.tryExecuteBattery(prompt);
-    if (batteryReply != null) {
-      final replyMsg = ChatMessage(
-        conversationId: savedConversationId,
-        role: 'assistant',
-        content: batteryReply,
+        content: toolResult.reply!,
         createdAt: DateTime.now(),
       );
       await _chatDatabase.saveMessage(replyMsg);

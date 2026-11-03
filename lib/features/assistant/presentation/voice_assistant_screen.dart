@@ -1,7 +1,5 @@
-import 'package:pocket_ai/tools/battery_tool.dart';
+import 'package:pocket_ai/tools/tool_registry.dart';
 import 'package:pocket_ai/features/assistant/presentation/voice_utils.dart';
-import 'package:pocket_ai/tools/torch_tool.dart';
-import 'package:pocket_ai/tools/reminder_parser.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -184,41 +182,16 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _aiResponse = '';
     });
 
-    final reminderReply = await ReminderParser.tryExecuteReminder(prompt);
-    if (reminderReply != null) {
+    // Dispatch through Central Tool Registry
+    final toolResult = await ToolRegistry.dispatch(prompt);
+    if (toolResult.handled && toolResult.reply != null) {
       if (!mounted) return;
       setState(() {
         _state = AssistantState.speaking;
-        _statusMessage = 'Reminder scheduled!';
-        _aiResponse = reminderReply;
+        _statusMessage = 'Action completed';
+        _aiResponse = toolResult.reply!;
       });
-      await _flutterTts.speak(reminderReply);
-      return;
-    }
-
-    // Intercept offline flashlight / torch command
-    final torchReply = await TorchService.tryExecuteTorch(prompt);
-    if (torchReply != null) {
-      if (!mounted) return;
-      setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Flashlight action';
-        _aiResponse = torchReply;
-      });
-      await _flutterTts.speak(torchReply);
-      return;
-    }
-
-    // Intercept offline battery query
-    final batteryReply = await BatteryTool.tryExecuteBattery(prompt);
-    if (batteryReply != null) {
-      if (!mounted) return;
-      setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Battery status';
-        _aiResponse = batteryReply;
-      });
-      await _flutterTts.speak(batteryReply);
+      await _flutterTts.speak(toolResult.reply!);
       return;
     }
 

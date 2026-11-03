@@ -1,4 +1,5 @@
 import '../tools/remainder_tools.dart';
+import 'pocket_tool.dart';
 
 class ReminderIntentResult {
   final bool isReminder;
@@ -12,7 +13,32 @@ class ReminderIntentResult {
   });
 }
 
-class ReminderParser {
+class ReminderTool implements PocketTool {
+  const ReminderTool();
+
+  @override
+  String get name => 'create_reminder';
+
+  @override
+  Map<String, dynamic> get definition => {
+        "name": name,
+        "description": "Create a reminder for the user with delay in minutes",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "The title or action of the reminder",
+            },
+            "delay_minutes": {
+              "type": "integer",
+              "description": "Delay before firing the reminder in minutes",
+            }
+          },
+          "required": ["title", "delay_minutes"],
+        },
+      };
+
   /// Detects phrases like:
   /// - "remind me to call John in 5 minutes"
   /// - "set a reminder to buy groceries in 1 hour"
@@ -60,7 +86,6 @@ class ReminderParser {
     }
 
     if (delayMinutes > 0 && task.isNotEmpty) {
-      // Clean leading verbs if present
       task = task.replaceFirst(RegExp(r'^(to\s+)', caseSensitive: false), '').trim();
       return ReminderIntentResult(
         isReminder: true,
@@ -88,4 +113,10 @@ class ReminderParser {
 
     return "Got it! I've set a reminder to ${result.title} in $durationStr.";
   }
+
+  @override
+  Future<String?> tryExecute(String prompt) => tryExecuteReminder(prompt);
 }
+
+/// Backwards compatibility typedef
+typedef ReminderParser = ReminderTool;

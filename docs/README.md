@@ -39,6 +39,9 @@ lib/
 │   └── tool_definitions.dart           # Offline function schemas for reminder & torch
 │
 ├── tools/
+│   ├── pocket_tool.dart                # Abstract PocketTool contract (name, definition, tryExecute)
+│   ├── tool_registry.dart              # Central tool dispatcher & schema aggregation hub
+│   ├── alarm_tool.dart                 # Native Android Clock alarms & timers via Intent Plus
 │   ├── battery_tool.dart               # Battery level & charging status diagnostics
 │   ├── remainder_tools.dart            # Local notification & alarm scheduling service
 │   ├── reminder_parser.dart            # Offline natural language regex intent extractor
@@ -95,6 +98,7 @@ lib/
 | **Notifications & Alarms** | `flutter_local_notifications` + `timezone` | Exact alarms, device reboots & reminder alerts |
 | **Device Battery & Power** | `battery_plus` | Hardware battery level & charging state |
 | **Hardware Flashlight** | `torch_light` | Device camera LED control |
+| **System Alarms & Timers** | `android_intent_plus` | Android native Clock app intent dispatching |
 
 ---
 
