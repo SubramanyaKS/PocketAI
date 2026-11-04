@@ -84,7 +84,7 @@ and [architecture guide](docs/architecture.md).
 Pocket AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Device Tools & Central Registry**: Flashlight / torch controls, battery diagnostics, scheduled reminders, and native alarms & timers routed through `ToolRegistry`.
 - [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
-- [ ] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
+- [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
 - [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
 - [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
 - [ ] **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.

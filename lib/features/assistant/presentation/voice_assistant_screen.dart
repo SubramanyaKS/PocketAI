@@ -25,6 +25,10 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
 
+  Future<void> _speechQueue = Future.value();
+  String _pendingSpeechText = '';
+  int _speechRunId = 0;
+
   AssistantState _state = AssistantState.idle;
   String _userSpeech = '';
   String _aiResponse = '';
@@ -75,15 +79,12 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
 
-    _flutterTts.setCompletionHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _state = AssistantState.idle;
-        _statusMessage = 'Listening finished. Tap to speak again';
-      });
-    });
+    // Sequential audio queue: awaitSpeakCompletion blocks await _flutterTts.speak()
+    // until the current utterance completes native playback.
+    await _flutterTts.awaitSpeakCompletion(true);
 
     _flutterTts.setErrorHandler((msg) {
+      debugPrint('TTS error: $msg');
       if (!mounted) return;
       setState(() {
         _state = AssistantState.idle;
@@ -91,6 +92,54 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       });
     });
   }
+
+  
+  void _enqueueSpeech(String sentence, int runId) {
+    final text = VoiceUtils.cleanSpokenText(sentence);
+    // Ignore empty text or snippets without words
+    if (text.trim().isEmpty || !RegExp(r'\w').hasMatch(text)) return;
+
+    _speechQueue = _speechQueue.then((_) async {
+      if (!mounted || runId != _speechRunId) return;
+
+      if (_state != AssistantState.speaking) {
+        setState(() {
+          _state = AssistantState.speaking;
+          _statusMessage = 'Speaking response...';
+        });
+      }
+
+      await _flutterTts.speak(text);
+    }).catchError((error) {
+      debugPrint('TTS queue error: $error');
+    });
+  }
+
+  List<String> _extractSentences() {
+    final sentences = <String>[];
+    final regex = RegExp(r'[.!?]["\u2019\u201D\)]*\s+');
+
+    while (true) {
+      final match = regex.firstMatch(_pendingSpeechText);
+      if (match == null) break;
+
+      final sentence = _pendingSpeechText.substring(0, match.end).trim();
+      if (sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+      _pendingSpeechText = _pendingSpeechText.substring(match.end);
+    }
+
+    return sentences;
+  }
+
+  void _addSpeechToken(String token, int runId) {
+    _pendingSpeechText += token;
+    for (final sentence in _extractSentences()) {
+      _enqueueSpeech(sentence, runId);
+    }
+  }
+
 
   Future<void> _initSpeech() async {
     try {
@@ -175,23 +224,37 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     _processWithAi(_userSpeech.trim());
   }
 
+  // 
+  
   Future<void> _processWithAi(String prompt) async {
+    final runId = ++_speechRunId;
+
+    _pendingSpeechText = '';
+    _speechQueue = Future.value();
+
     setState(() {
       _state = AssistantState.thinking;
       _statusMessage = 'Pocket AI is thinking...';
       _aiResponse = '';
     });
 
-    // Dispatch through Central Tool Registry
     final toolResult = await ToolRegistry.dispatch(prompt);
+    if (!mounted || runId != _speechRunId) return;
+
     if (toolResult.handled && toolResult.reply != null) {
-      if (!mounted) return;
       setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Action completed';
         _aiResponse = toolResult.reply!;
       });
-      await _flutterTts.speak(toolResult.reply!);
+
+      _enqueueSpeech(toolResult.reply!, runId);
+      await _speechQueue;
+
+      if (mounted && runId == _speechRunId) {
+        setState(() {
+          _state = AssistantState.idle;
+          _statusMessage = 'Tap to speak again';
+        });
+      }
       return;
     }
 
@@ -204,65 +267,68 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       ),
     ];
 
-    final buffer = StringBuffer();
-    bool hasStartedSpeaking = false;
+    final responseBuffer = StringBuffer();
 
     try {
-      await for (final token in widget.aiService.askStream(conversation, systemPrompt: LocalAiService.defaultVoiceSystemPrompt, maxTokens: 120)) {
-        if (!mounted || _state == AssistantState.idle) break;
+      await for (final token in widget.aiService.askStream(
+        conversation,
+        systemPrompt: LocalAiService.defaultVoiceSystemPrompt,
+        maxTokens: 120,
+      )) {
+        if (!mounted || runId != _speechRunId) return;
 
-        buffer.write(token);
+        responseBuffer.write(token);
 
         setState(() {
-          _aiResponse = buffer.toString();
+          _aiResponse = responseBuffer.toString();
         });
 
-        if (!hasStartedSpeaking && VoiceUtils.containsSentenceEnding(buffer.toString())) {
-          hasStartedSpeaking = true;
-          setState(() {
-            _state = AssistantState.speaking;
-            _statusMessage = 'Speaking response...';
-          });
-        }
+        // Send complete sentences to TTS immediately as tokens arrive
+        _addSpeechToken(token, runId);
       }
 
-      if (!mounted) return;
+      if (!mounted || runId != _speechRunId) return;
 
-      final finalText = VoiceUtils.cleanSpokenText(buffer.toString());
-      if (finalText.isEmpty) {
-        setState(() {
-          _state = AssistantState.idle;
-          _statusMessage = 'No response generated. Tap to try again.';
-        });
-        return;
+      // Speak any remaining incomplete sentence
+      final remaining = _pendingSpeechText.trim();
+      if (remaining.isNotEmpty) {
+        _enqueueSpeech(remaining, runId);
       }
+      _pendingSpeechText = '';
 
-      setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Speaking response...';
-        _aiResponse = finalText;
-      });
+      // Wait for all queued sentences to complete playback
+      await _speechQueue;
 
-      await _flutterTts.speak(finalText);
-    } catch (e) {
-      debugPrint('AI Inference error in voice assistant: $e');
-      if (!mounted) return;
+      if (!mounted || runId != _speechRunId) return;
+
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'Error generating response: $e';
+        _statusMessage = 'Tap to speak again';
+        _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
+      });
+    } catch (e) {
+      debugPrint('Voice AI error: $e');
+      if (!mounted || runId != _speechRunId) return;
+
+      setState(() {
+        _state = AssistantState.idle;
+        _statusMessage = 'Error generating response';
       });
     }
   }
 
-
   Future<void> _stopTts() async {
+    _speechRunId++;
+    _pendingSpeechText = '';
+
     await _flutterTts.stop();
-    if (mounted && _state == AssistantState.speaking) {
-      setState(() {
-        _state = AssistantState.idle;
-        _statusMessage = 'Stopped. Tap to speak';
-      });
-    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _state = AssistantState.idle;
+      _statusMessage = 'Stopped. Tap to speak';
+    });
   }
 
   void _onMainButtonPressed() {
@@ -296,6 +362,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
   @override
   void dispose() {
+    _speechRunId++;
     _pulseController.dispose();
     _waveController.dispose();
     _orbitController.dispose();

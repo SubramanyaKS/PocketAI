@@ -19,7 +19,7 @@ Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first 
    - Feature Highlights
    - Build & Run Instructions
 
-3. **[Future Project Roadmap](../FUTURE_ROADMAP.md)**
+3. **[Future Project Roadmap](FUTURE_ROADMAP.md)**
    - Completed Milestones
    - Upcoming Engineering Phases (RAG, Streaming Audio Queue, Multi-Model Manager)
 
