@@ -16,7 +16,7 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
 ## Features
 
 - **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
-- **Voice Assistant**: Conversational voice pipeline (STT ➔ on-device LLM ➔ TTS) with an animated glowing orb, rotating ambient rings, and live audio waveform equalizer. Speech-service availability depends on the device.
+- **Voice Assistant & Hands-Free Mode**: Conversational voice pipeline (STT ➔ on-device LLM ➔ low-latency streaming TTS) with an animated glowing orb, rotating ambient rings, live audio waveform equalizer, and auto-continuous hands-free loop with silence detection and tap-to-interrupt.
 - **Offline Device Action Tools & Registry**:
   - 🧩 **Central Tool Registry**: Unified, extensible architecture (`PocketTool` contract + `ToolRegistry`) dispatching instant device commands without LLM latency or hallucination.
   - ⏰ **Native Android Clock Alarms & Timers**: Set system alarms and countdown timers in the phone's native Clock app via Android intents (*"Set an alarm for 7:30 AM"*, *"Wake me up at 6 AM"*, *"Set a timer for 15 minutes"*).
@@ -85,6 +85,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Device Tools & Central Registry**: Flashlight / torch controls, battery diagnostics, scheduled reminders, and native alarms & timers routed through `ToolRegistry`.
 - [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
 - [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
+- [x] **Auto-Continuous Conversation & Barge-in**: Hands-free conversation loop with silence timeout, verbal exit detection, and tap-to-interrupt.
 - [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
 - [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
 - [ ] **Markdown & Code Highlighting**: Rich formatting and syntax highlighting in chat.

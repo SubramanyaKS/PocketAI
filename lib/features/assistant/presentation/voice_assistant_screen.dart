@@ -28,6 +28,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   Future<void> _speechQueue = Future.value();
   String _pendingSpeechText = '';
   int _speechRunId = 0;
+  bool _isContinuousMode = false;
 
   AssistantState _state = AssistantState.idle;
   String _userSpeech = '';
@@ -167,6 +168,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     }
   }
 
+  void _toggleContinuousMode() {
+    setState(() {
+      _isContinuousMode = !_isContinuousMode;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isContinuousMode
+              ? 'Hands-free continuous mode enabled: Pocket Voice will auto-listen.'
+              : 'Hands-free continuous mode disabled.',
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _startListening() async {
     await _stopTts();
 
@@ -183,7 +201,9 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _state = AssistantState.listening;
       _userSpeech = '';
       _aiResponse = '';
-      _statusMessage = 'Listening to your voice...';
+      _statusMessage = _isContinuousMode
+          ? 'Listening for your reply...'
+          : 'Listening to your voice...';
     });
 
     await _speech.listen(
@@ -216,7 +236,25 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     if (_userSpeech.trim().isEmpty) {
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'No speech detected. Tap to speak';
+        _statusMessage = _isContinuousMode
+            ? 'Conversation paused. Tap to resume'
+            : 'No speech detected. Tap to speak';
+      });
+      return;
+    }
+
+    final lower = _userSpeech.trim().toLowerCase();
+    // In hands-free mode, verbal exit commands gracefully end the continuous loop
+    if (_isContinuousMode &&
+        (lower == 'stop' ||
+            lower == 'goodbye' ||
+            lower == 'bye' ||
+            lower == 'exit' ||
+            lower == 'quit')) {
+      setState(() {
+        _state = AssistantState.idle;
+        _statusMessage = 'Conversation ended. Tap to speak';
+        _userSpeech = '';
       });
       return;
     }
@@ -250,10 +288,21 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       await _speechQueue;
 
       if (mounted && runId == _speechRunId) {
-        setState(() {
-          _state = AssistantState.idle;
-          _statusMessage = 'Tap to speak again';
-        });
+        if (_isContinuousMode) {
+          setState(() {
+            _state = AssistantState.idle;
+            _statusMessage = 'Listening for reply...';
+          });
+          await Future.delayed(const Duration(milliseconds: 700));
+          if (mounted && runId == _speechRunId && _isContinuousMode) {
+            _startListening();
+          }
+        } else {
+          setState(() {
+            _state = AssistantState.idle;
+            _statusMessage = 'Tap to speak again';
+          });
+        }
       }
       return;
     }
@@ -301,11 +350,25 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
       if (!mounted || runId != _speechRunId) return;
 
-      setState(() {
-        _state = AssistantState.idle;
-        _statusMessage = 'Tap to speak again';
-        _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
-      });
+      if (_isContinuousMode) {
+        setState(() {
+          _state = AssistantState.idle;
+          _statusMessage = 'Listening for reply...';
+          _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
+        });
+
+        // Breathing delay before opening the mic to prevent echo bleeding
+        await Future.delayed(const Duration(milliseconds: 700));
+        if (mounted && runId == _speechRunId && _isContinuousMode) {
+          _startListening();
+        }
+      } else {
+        setState(() {
+          _state = AssistantState.idle;
+          _statusMessage = 'Tap to speak again';
+          _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
+        });
+      }
     } catch (e) {
       debugPrint('Voice AI error: $e');
       if (!mounted || runId != _speechRunId) return;
@@ -347,6 +410,10 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         break;
       case AssistantState.speaking:
         _stopTts();
+        if (_isContinuousMode) {
+          // Tap-to-interrupt / barge-in: immediately open mic for user speech
+          _startListening();
+        }
         break;
     }
   }
@@ -447,6 +514,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
             ],
           ),
           actions: [
+            IconButton(
+              tooltip: _isContinuousMode
+                  ? 'Hands-Free Loop: ON'
+                  : 'Hands-Free Loop: OFF',
+              icon: Icon(
+                _isContinuousMode
+                    ? Icons.all_inclusive_rounded
+                    : Icons.all_inclusive_outlined,
+                color: _isContinuousMode
+                    ? const Color(0xFF10B981)
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
+                size: 22,
+              ),
+              onPressed: _toggleContinuousMode,
+            ),
             if (_userSpeech.isNotEmpty || _aiResponse.isNotEmpty)
               IconButton(
                 tooltip: 'Clear screen',
@@ -482,7 +566,63 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         ),
         body: Column(
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            // Hands-Free Interactive Chip
+            GestureDetector(
+              onTap: _toggleContinuousMode,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _isContinuousMode
+                      ? const Color(0xFF10B981)
+                          .withValues(alpha: isDark ? 0.20 : 0.12)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.04)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isContinuousMode
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : (isDark ? Colors.white12 : Colors.black12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.all_inclusive_rounded,
+                      size: 13,
+                      color: _isContinuousMode
+                          ? const Color(0xFF10B981)
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isContinuousMode
+                          ? 'Hands-Free Loop: ON'
+                          : 'Hands-Free Loop: OFF',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                        color: _isContinuousMode
+                            ? const Color(0xFF10B981)
+                            : (isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
 
             // Animated Status Pill
             AnimatedContainer(
