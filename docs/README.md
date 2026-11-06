@@ -19,7 +19,7 @@ Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first 
    - Feature Highlights
    - Build & Run Instructions
 
-3. **[Future Project Roadmap](../FUTURE_ROADMAP.md)**
+3. **[Future Project Roadmap](FUTURE_ROADMAP.md)**
    - Completed Milestones
    - Upcoming Engineering Phases (RAG, Streaming Audio Queue, Multi-Model Manager)
 
@@ -99,6 +99,9 @@ lib/
 | **Device Battery & Power** | `battery_plus` | Hardware battery level & charging state |
 | **Hardware Flashlight** | `torch_light` | Device camera LED control |
 | **System Alarms & Timers** | `android_intent_plus` | Android native Clock app intent dispatching |
+| **Integrity & Security** | `crypto` | Streaming SHA-256 model supply-chain verification |
+| **Markdown Rendering** | `flutter_markdown_plus` + `markdown` | Markdown parsing for assistant replies |
+| **Code Syntax Highlighting** | `flutter_highlighter` | Language syntax highlighter & themes |
 
 ---
 

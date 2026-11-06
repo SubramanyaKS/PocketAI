@@ -25,6 +25,11 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
 
+  Future<void> _speechQueue = Future.value();
+  String _pendingSpeechText = '';
+  int _speechRunId = 0;
+  bool _isContinuousMode = false;
+
   AssistantState _state = AssistantState.idle;
   String _userSpeech = '';
   String _aiResponse = '';
@@ -75,15 +80,12 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
 
-    _flutterTts.setCompletionHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _state = AssistantState.idle;
-        _statusMessage = 'Listening finished. Tap to speak again';
-      });
-    });
+    // Sequential audio queue: awaitSpeakCompletion blocks await _flutterTts.speak()
+    // until the current utterance completes native playback.
+    await _flutterTts.awaitSpeakCompletion(true);
 
     _flutterTts.setErrorHandler((msg) {
+      debugPrint('TTS error: $msg');
       if (!mounted) return;
       setState(() {
         _state = AssistantState.idle;
@@ -91,6 +93,54 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       });
     });
   }
+
+  
+  void _enqueueSpeech(String sentence, int runId) {
+    final text = VoiceUtils.cleanSpokenText(sentence);
+    // Ignore empty text or snippets without words
+    if (text.trim().isEmpty || !RegExp(r'\w').hasMatch(text)) return;
+
+    _speechQueue = _speechQueue.then((_) async {
+      if (!mounted || runId != _speechRunId) return;
+
+      if (_state != AssistantState.speaking) {
+        setState(() {
+          _state = AssistantState.speaking;
+          _statusMessage = 'Speaking response...';
+        });
+      }
+
+      await _flutterTts.speak(text);
+    }).catchError((error) {
+      debugPrint('TTS queue error: $error');
+    });
+  }
+
+  List<String> _extractSentences() {
+    final sentences = <String>[];
+    final regex = RegExp(r'[.!?]["\u2019\u201D\)]*\s+');
+
+    while (true) {
+      final match = regex.firstMatch(_pendingSpeechText);
+      if (match == null) break;
+
+      final sentence = _pendingSpeechText.substring(0, match.end).trim();
+      if (sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+      _pendingSpeechText = _pendingSpeechText.substring(match.end);
+    }
+
+    return sentences;
+  }
+
+  void _addSpeechToken(String token, int runId) {
+    _pendingSpeechText += token;
+    for (final sentence in _extractSentences()) {
+      _enqueueSpeech(sentence, runId);
+    }
+  }
+
 
   Future<void> _initSpeech() async {
     try {
@@ -118,6 +168,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     }
   }
 
+  void _toggleContinuousMode() {
+    setState(() {
+      _isContinuousMode = !_isContinuousMode;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isContinuousMode
+              ? 'Hands-free continuous mode enabled: Pocket Voice will auto-listen.'
+              : 'Hands-free continuous mode disabled.',
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _startListening() async {
     await _stopTts();
 
@@ -134,7 +201,9 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       _state = AssistantState.listening;
       _userSpeech = '';
       _aiResponse = '';
-      _statusMessage = 'Listening to your voice...';
+      _statusMessage = _isContinuousMode
+          ? 'Listening for your reply...'
+          : 'Listening to your voice...';
     });
 
     await _speech.listen(
@@ -167,7 +236,25 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     if (_userSpeech.trim().isEmpty) {
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'No speech detected. Tap to speak';
+        _statusMessage = _isContinuousMode
+            ? 'Conversation paused. Tap to resume'
+            : 'No speech detected. Tap to speak';
+      });
+      return;
+    }
+
+    final lower = _userSpeech.trim().toLowerCase();
+    // In hands-free mode, verbal exit commands gracefully end the continuous loop
+    if (_isContinuousMode &&
+        (lower == 'stop' ||
+            lower == 'goodbye' ||
+            lower == 'bye' ||
+            lower == 'exit' ||
+            lower == 'quit')) {
+      setState(() {
+        _state = AssistantState.idle;
+        _statusMessage = 'Conversation ended. Tap to speak';
+        _userSpeech = '';
       });
       return;
     }
@@ -175,23 +262,48 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     _processWithAi(_userSpeech.trim());
   }
 
+  // 
+  
   Future<void> _processWithAi(String prompt) async {
+    final runId = ++_speechRunId;
+
+    _pendingSpeechText = '';
+    _speechQueue = Future.value();
+
     setState(() {
       _state = AssistantState.thinking;
       _statusMessage = 'Pocket AI is thinking...';
       _aiResponse = '';
     });
 
-    // Dispatch through Central Tool Registry
     final toolResult = await ToolRegistry.dispatch(prompt);
+    if (!mounted || runId != _speechRunId) return;
+
     if (toolResult.handled && toolResult.reply != null) {
-      if (!mounted) return;
       setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Action completed';
         _aiResponse = toolResult.reply!;
       });
-      await _flutterTts.speak(toolResult.reply!);
+
+      _enqueueSpeech(toolResult.reply!, runId);
+      await _speechQueue;
+
+      if (mounted && runId == _speechRunId) {
+        if (_isContinuousMode) {
+          setState(() {
+            _state = AssistantState.idle;
+            _statusMessage = 'Listening for reply...';
+          });
+          await Future.delayed(const Duration(milliseconds: 700));
+          if (mounted && runId == _speechRunId && _isContinuousMode) {
+            _startListening();
+          }
+        } else {
+          setState(() {
+            _state = AssistantState.idle;
+            _statusMessage = 'Tap to speak again';
+          });
+        }
+      }
       return;
     }
 
@@ -204,65 +316,82 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       ),
     ];
 
-    final buffer = StringBuffer();
-    bool hasStartedSpeaking = false;
+    final responseBuffer = StringBuffer();
 
     try {
-      await for (final token in widget.aiService.askStream(conversation, systemPrompt: LocalAiService.defaultVoiceSystemPrompt, maxTokens: 120)) {
-        if (!mounted || _state == AssistantState.idle) break;
+      await for (final token in widget.aiService.askStream(
+        conversation,
+        systemPrompt: LocalAiService.defaultVoiceSystemPrompt,
+        maxTokens: 120,
+      )) {
+        if (!mounted || runId != _speechRunId) return;
 
-        buffer.write(token);
+        responseBuffer.write(token);
 
         setState(() {
-          _aiResponse = buffer.toString();
+          _aiResponse = responseBuffer.toString();
         });
 
-        if (!hasStartedSpeaking && VoiceUtils.containsSentenceEnding(buffer.toString())) {
-          hasStartedSpeaking = true;
-          setState(() {
-            _state = AssistantState.speaking;
-            _statusMessage = 'Speaking response...';
-          });
-        }
+        // Send complete sentences to TTS immediately as tokens arrive
+        _addSpeechToken(token, runId);
       }
 
-      if (!mounted) return;
+      if (!mounted || runId != _speechRunId) return;
 
-      final finalText = VoiceUtils.cleanSpokenText(buffer.toString());
-      if (finalText.isEmpty) {
+      // Speak any remaining incomplete sentence
+      final remaining = _pendingSpeechText.trim();
+      if (remaining.isNotEmpty) {
+        _enqueueSpeech(remaining, runId);
+      }
+      _pendingSpeechText = '';
+
+      // Wait for all queued sentences to complete playback
+      await _speechQueue;
+
+      if (!mounted || runId != _speechRunId) return;
+
+      if (_isContinuousMode) {
         setState(() {
           _state = AssistantState.idle;
-          _statusMessage = 'No response generated. Tap to try again.';
+          _statusMessage = 'Listening for reply...';
+          _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
         });
-        return;
+
+        // Breathing delay before opening the mic to prevent echo bleeding
+        await Future.delayed(const Duration(milliseconds: 700));
+        if (mounted && runId == _speechRunId && _isContinuousMode) {
+          _startListening();
+        }
+      } else {
+        setState(() {
+          _state = AssistantState.idle;
+          _statusMessage = 'Tap to speak again';
+          _aiResponse = VoiceUtils.cleanSpokenText(responseBuffer.toString());
+        });
       }
-
-      setState(() {
-        _state = AssistantState.speaking;
-        _statusMessage = 'Speaking response...';
-        _aiResponse = finalText;
-      });
-
-      await _flutterTts.speak(finalText);
     } catch (e) {
-      debugPrint('AI Inference error in voice assistant: $e');
-      if (!mounted) return;
+      debugPrint('Voice AI error: $e');
+      if (!mounted || runId != _speechRunId) return;
+
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'Error generating response: $e';
+        _statusMessage = 'Error generating response';
       });
     }
   }
 
-
   Future<void> _stopTts() async {
+    _speechRunId++;
+    _pendingSpeechText = '';
+
     await _flutterTts.stop();
-    if (mounted && _state == AssistantState.speaking) {
-      setState(() {
-        _state = AssistantState.idle;
-        _statusMessage = 'Stopped. Tap to speak';
-      });
-    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _state = AssistantState.idle;
+      _statusMessage = 'Stopped. Tap to speak';
+    });
   }
 
   void _onMainButtonPressed() {
@@ -281,6 +410,10 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         break;
       case AssistantState.speaking:
         _stopTts();
+        if (_isContinuousMode) {
+          // Tap-to-interrupt / barge-in: immediately open mic for user speech
+          _startListening();
+        }
         break;
     }
   }
@@ -296,6 +429,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
   @override
   void dispose() {
+    _speechRunId++;
     _pulseController.dispose();
     _waveController.dispose();
     _orbitController.dispose();
@@ -380,6 +514,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
             ],
           ),
           actions: [
+            IconButton(
+              tooltip: _isContinuousMode
+                  ? 'Hands-Free Loop: ON'
+                  : 'Hands-Free Loop: OFF',
+              icon: Icon(
+                _isContinuousMode
+                    ? Icons.all_inclusive_rounded
+                    : Icons.all_inclusive_outlined,
+                color: _isContinuousMode
+                    ? const Color(0xFF10B981)
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
+                size: 22,
+              ),
+              onPressed: _toggleContinuousMode,
+            ),
             if (_userSpeech.isNotEmpty || _aiResponse.isNotEmpty)
               IconButton(
                 tooltip: 'Clear screen',
@@ -415,7 +566,63 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
         ),
         body: Column(
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            // Hands-Free Interactive Chip
+            GestureDetector(
+              onTap: _toggleContinuousMode,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _isContinuousMode
+                      ? const Color(0xFF10B981)
+                          .withValues(alpha: isDark ? 0.20 : 0.12)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.04)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isContinuousMode
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : (isDark ? Colors.white12 : Colors.black12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.all_inclusive_rounded,
+                      size: 13,
+                      color: _isContinuousMode
+                          ? const Color(0xFF10B981)
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isContinuousMode
+                          ? 'Hands-Free Loop: ON'
+                          : 'Hands-Free Loop: OFF',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                        color: _isContinuousMode
+                            ? const Color(0xFF10B981)
+                            : (isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
 
             // Animated Status Pill
             AnimatedContainer(
