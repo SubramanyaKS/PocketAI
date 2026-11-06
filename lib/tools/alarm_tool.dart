@@ -13,14 +13,20 @@ class AlarmTimerTool implements PocketTool {
   Map<String, dynamic> get definition => {
         "name": name,
         "description":
-            "Sets an alarm at a specific time or countdown timer using the phone's native Clock app.",
+            "Sets, dismisses, or stops an alarm or countdown timer using the phone's native Clock app.",
         "parameters": {
           "type": "object",
           "properties": {
-            "type": {
+            "action": {
               "type": "string",
-              "enum": ["alarm", "timer"],
-              "description": "Whether to set an alarm or a timer",
+              "enum": [
+                "set_alarm",
+                "set_timer",
+                "dismiss_alarm",
+                "dismiss_timer",
+                "show_alarms"
+              ],
+              "description": "The clock action to perform",
             },
             "hour": {
               "type": "integer",
@@ -39,15 +45,16 @@ class AlarmTimerTool implements PocketTool {
               "description": "Label or message for the alarm/timer",
             }
           },
-          "required": ["type"],
+          "required": ["action"],
         },
       };
 
   /// Parses natural language alarm and timer requests:
   /// - "set an alarm for 7:30 AM" / "wake me up at 6 AM" / "set an alarm for 6.25 PM"
-  /// - "set an alarm at 8:00" / "alarm for 6.25 PM" / "alarm 6 25 pm"
+  /// - "stop the alarm" / "dismiss alarm" / "cancel alarm" / "turn off the alarm"
   /// - "set a timer for 15 minutes" / "10 minute timer"
-  /// - "set a 30 second timer" / "timer for 1 hour"
+  /// - "stop the timer" / "cancel timer" / "turn off timer"
+  /// - "show alarms" / "open clock"
   static Future<String?> tryExecuteAlarmOrTimer(String prompt) async {
     // Normalize all variations of PM/AM (p.m., p.m, p. m., pm) from voice dictation
     String cleaned = prompt
@@ -58,7 +65,34 @@ class AlarmTimerTool implements PocketTool {
         .trim();
     final lower = cleaned.toLowerCase();
 
-    // Check timer first: "timer for 15 minutes", "set a 10 min timer"
+    // 1. Check dismiss / stop timer requests
+    final stopTimerPattern = RegExp(
+      r'\b(?:stop|cancel|dismiss|turn\s+off|clear|reset)\s+(?:the\s+)?timer(?:s)?\b',
+      caseSensitive: false,
+    );
+    if (stopTimerPattern.hasMatch(lower)) {
+      return await dismissNativeTimer();
+    }
+
+    // 2. Check dismiss / stop alarm requests
+    final stopAlarmPattern = RegExp(
+      r'\b(?:stop|cancel|dismiss|turn\s+off|silence|disable)\s+(?:the\s+)?alarm(?:s)?\b',
+      caseSensitive: false,
+    );
+    if (stopAlarmPattern.hasMatch(lower)) {
+      return await dismissNativeAlarm();
+    }
+
+    // 3. Check show / open alarms requests
+    final showAlarmPattern = RegExp(
+      r'\b(?:show|open|view|display)\s+(?:my\s+)?(?:alarms|clock)\b',
+      caseSensitive: false,
+    );
+    if (showAlarmPattern.hasMatch(lower)) {
+      return await showNativeAlarms();
+    }
+
+    // 4. Check set timer: "timer for 15 minutes", "set a 10 min timer"
     final timerPattern = RegExp(
       r'(?:set\s+(?:a\s+)?)?(\d+)\s*(minute|min|sec|second|hour|hr)s?\s+timer|timer\s+(?:for\s+)?(\d+)\s*(minute|min|sec|second|hour|hr)s?',
       caseSensitive: false,
@@ -89,7 +123,7 @@ class AlarmTimerTool implements PocketTool {
       }
     }
 
-    // Check alarm: handles ":", ".", or space between hour and minute, and various meridian expressions
+    // 5. Check set alarm: handles ":", ".", or space between hour and minute, and various meridian expressions
     // e.g. "set an alarm for 6.25 PM", "wake me up at 6:00", "alarm for 8 pm", "wake me up at 6 in the morning"
     final alarmPattern = RegExp(
       r'(?:(?:set\s+(?:an?\s+)?)?alarm(?:\s+(?:for|at))?|wake\s+me\s+up(?:\s+at)?)\s+(\d{1,2})(?:[:.](\d{1,2})|\s+(\d{2}))?\s*(am|pm|in\s+the\s+morning|in\s+the\s+afternoon|in\s+the\s+evening|at\s+night|tonight)?',
@@ -129,6 +163,75 @@ class AlarmTimerTool implements PocketTool {
     }
 
     return null;
+  }
+
+  /// Triggers Android native AlarmClock.ACTION_DISMISS_ALARM intent
+  static Future<String> dismissNativeAlarm() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final intent = AndroidIntent(
+          action: 'android.intent.action.DISMISS_ALARM',
+          arguments: <String, dynamic>{
+            'android.intent.extra.alarm.SEARCH_MODE': 'android.next',
+            'android.intent.extra.alarm.SKIP_UI': true,
+          },
+        );
+        await intent.launch();
+        return "Alarm dismissed in your Clock app.";
+      } catch (e) {
+        debugPrint('Failed to dismiss native alarm: $e');
+        try {
+          final fallbackIntent = AndroidIntent(
+            action: 'android.intent.action.SHOW_ALARMS',
+          );
+          await fallbackIntent.launch();
+          return "Opened Clock app alarms for you.";
+        } catch (_) {
+          return "Could not open the Clock app to dismiss the alarm.";
+        }
+      }
+    }
+
+    return "Alarm dismissed (simulation on non-Android platform).";
+  }
+
+  /// Triggers Android native AlarmClock.ACTION_DISMISS_TIMER intent
+  static Future<String> dismissNativeTimer() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final intent = AndroidIntent(
+          action: 'android.intent.action.DISMISS_TIMER',
+          arguments: <String, dynamic>{
+            'android.intent.extra.alarm.SKIP_UI': true,
+          },
+        );
+        await intent.launch();
+        return "Timer dismissed in your Clock app.";
+      } catch (e) {
+        debugPrint('Failed to dismiss native timer: $e');
+        return "Could not open the Clock app to dismiss the timer.";
+      }
+    }
+
+    return "Timer dismissed (simulation on non-Android platform).";
+  }
+
+  /// Opens the native Clock app alarms list
+  static Future<String> showNativeAlarms() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final intent = AndroidIntent(
+          action: 'android.intent.action.SHOW_ALARMS',
+        );
+        await intent.launch();
+        return "Opening your Clock alarms.";
+      } catch (e) {
+        debugPrint('Failed to open alarms: $e');
+        return "Could not open your Clock app.";
+      }
+    }
+
+    return "Showing alarms (simulation on non-Android platform).";
   }
 
   /// Triggers Android native AlarmClock.ACTION_SET_ALARM intent

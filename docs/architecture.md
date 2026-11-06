@@ -127,6 +127,7 @@ sequenceDiagram
         HF-->>Setup: Emit progress percentage (0-100%)
         HF-->>Service: Complete download to .part file
         Service->>Service: Validate GGUF header on .part
+        Service->>Service: Verify SHA-256 cryptographic digest (streaming chunked hash)
         Service->>FS: Atomic rename .part -> final .gguf
     end
 
@@ -270,4 +271,4 @@ erDiagram
 | **Reboot Persistence** | `RECEIVE_BOOT_COMPLETED` | Handled by `ScheduledNotificationBootReceiver` |
 | **Camera Flashlight** | `android.permission.CAMERA` | `TorchLight.isTorchAvailable()` pre-check |
 | **Battery Diagnostics** | None (Standard OS Broadcast) | `BatteryTool.getBatteryInfo()` exception guard |
-| **Native Alarms & Timers** | `com.android.alarm.permission.SET_ALARM` | Dispatches `ACTION_SET_ALARM` / `ACTION_SET_TIMER` via `android_intent_plus` (`SKIP_UI: true`) |
+| **Native Alarms & Timers** | `com.android.alarm.permission.SET_ALARM` | Dispatches `ACTION_SET_ALARM`, `ACTION_SET_TIMER`, `ACTION_DISMISS_ALARM`, `ACTION_DISMISS_TIMER`, `ACTION_SHOW_ALARMS` via `android_intent_plus` (`SKIP_UI: true`) |

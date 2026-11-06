@@ -12,6 +12,7 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 - [x] **Dynamic Role-Tailored System Prompts**: Decoupled system prompts for Chat (defaultChatSystemPrompt) vs. Voice (defaultVoiceSystemPrompt), ensuring clean text formatting in chat and spoken, markdown-free responses in voice mode.
 - [x] **Global Riverpod Theming & Settings**: Unified light & dark mode themes across Chat, Voice Assistant, and Bottom Navigation, switchable in SettingsScreen.
 - [x] **Enhanced Prompt Suggestions**: Real-world starter ideas in the empty chat state.
+- [x] **Rich Markdown & Code Syntax Highlighting**: Dynamic Markdown formatting with custom code blocks, syntax themes, language detection badges, and copy button.
 
 ---
 
@@ -87,7 +88,7 @@ Enable users to chat with their private files completely offline:
 
 ### 5. Chat UI/UX & Performance Optimization
 
-- **Rich Markdown & Code Highlighting**: Add flutter_markdown with code syntax highlighting, copy-code buttons, and tables.
+- [x] **Rich Markdown & Code Highlighting**: Implemented with `flutter_markdown_plus` and `flutter_highlighter` featuring language headers, dark/light themes, and animated clipboard copy.
 - **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via llama.cpp compilation flags for 2x-4x tokens/second.
 - **Background Keep-Alive**: Lifecycle management so switching apps during long generations doesn't abort inference.
 
@@ -99,6 +100,6 @@ Enable users to chat with their private files completely offline:
 |---|---|---|---|
 | **Phase 1** | **Streaming TTS & Hands-Free Loop** | Voice Assistant | ~1s instant audio response, conversational flow |
 | **Phase 2** | **Offline Alarms, Timers & Reminders** | Device Tasks | Everyday utility without internet |
-| **Phase 3** | **Markdown & Code Syntax Highlighting** | Chat Screen | Clean readable output for code, lists & tables |
+| **Phase 3** | **Markdown & Code Syntax Highlighting** *(Completed)* | Chat Screen | Clean readable output for code, lists & tables |
 | **Phase 4** | **Multi-Model Manager** | Core AI | Flexibility for budget vs flagship devices |
 | **Phase 5** | **Offline Document Chat (RAG)** | Local Knowledge | Private study & document search on-device |

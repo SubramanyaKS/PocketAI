@@ -12,6 +12,8 @@ import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
 import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:pocket_ai/features/chat/widgets/markdown_code_builder.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.aiService});
@@ -762,18 +764,92 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: Text(
-                                    message.content,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      height: 1.5,
-                                      color: isMe
-                                          ? Colors.white
-                                          : (isDark
-                                              ? const Color(0xFFE2E8F0)
-                                              : const Color(0xFF20283A)),
-                                    ),
-                                  ),
+                                  child: isMe
+                                      ? Text(
+                                          message.content,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            height: 1.5,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : MarkdownBody(
+                                          data: message.content,
+                                          selectable: true,
+                                          builders: {
+                                            'code': CodeElementBuilder(
+                                              isDark: isDark,
+                                            ),
+                                          },
+                                          styleSheet:
+                                              MarkdownStyleSheet.fromTheme(
+                                            Theme.of(context),
+                                          ).copyWith(
+                                            p: TextStyle(
+                                              fontSize: 15,
+                                              height: 1.5,
+                                              color: isDark
+                                                  ? const Color(0xFFE2E8F0)
+                                                  : const Color(0xFF20283A),
+                                            ),
+                                            h1: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
+                                            ),
+                                            h2: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
+                                            ),
+                                            h3: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
+                                            ),
+                                            listBullet: TextStyle(
+                                              fontSize: 15,
+                                              color: isDark
+                                                  ? const Color(0xFF818CF8)
+                                                  : const Color(0xFF4F46E5),
+                                            ),
+                                            blockquoteDecoration:
+                                                BoxDecoration(
+                                              color: isDark
+                                                  ? const Color(0xFF1E293B)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border(
+                                                left: BorderSide(
+                                                  color: isDark
+                                                      ? const Color(0xFF818CF8)
+                                                      : const Color(0xFF4F46E5),
+                                                  width: 3.5,
+                                                ),
+                                              ),
+                                            ),
+                                            tableBorder: TableBorder.all(
+                                              color: isDark
+                                                  ? Colors.white24
+                                                  : const Color(0xFFCBD5E1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            tableHead: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ),
                                 ),
                                 if (!isMe)
                                   Row(

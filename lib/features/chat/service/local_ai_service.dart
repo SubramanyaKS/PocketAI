@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:llamadart/llamadart.dart';
@@ -77,6 +78,13 @@ class LocalAiService {
         throw StateError('The downloaded file is not a valid GGUF model.');
       }
 
+      // Cryptographic SHA-256 supply-chain verification
+      if (!await _verifySha256(partialFile, modelSha256)) {
+        throw StateError(
+          'Security alert: Model file failed SHA-256 integrity verification.',
+        );
+      }
+
       await partialFile.rename(modelFile.path);
     } catch (_) {
       if (await partialFile.exists()) {
@@ -93,6 +101,22 @@ class LocalAiService {
     }
 
     return modelFile.path;
+  }
+
+  Future<bool> _verifySha256(File file, String expectedHash) async {
+    if (!await file.exists()) return false;
+    final verifyTimer = Stopwatch()..start();
+    try {
+      final digest = await sha256.bind(file.openRead()).first;
+      verifyTimer.stop();
+      debugPrint(
+        '[SECURITY] Model SHA-256 verified in ${(verifyTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)}s: $digest',
+      );
+      return digest.toString().toLowerCase() == expectedHash.toLowerCase();
+    } catch (e) {
+      debugPrint('[SECURITY] Error computing SHA-256 digest: $e');
+      return false;
+    }
   }
 
   Future<bool> _hasGgufHeader(File file) async {

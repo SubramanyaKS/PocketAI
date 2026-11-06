@@ -76,6 +76,32 @@ void main() {
       expect(res2, contains('30 seconds'));
     });
 
+    test('AlarmTimerTool parses dismiss/stop alarm and timer phrases', () async {
+      final resAlarm1 = await AlarmTimerTool.tryExecuteAlarmOrTimer('stop the alarm');
+      expect(resAlarm1, isNotNull);
+      expect(resAlarm1, contains('Alarm dismissed'));
+
+      final resAlarm2 = await AlarmTimerTool.tryExecuteAlarmOrTimer('dismiss alarm');
+      expect(resAlarm2, isNotNull);
+      expect(resAlarm2, contains('Alarm dismissed'));
+
+      final resAlarm3 = await AlarmTimerTool.tryExecuteAlarmOrTimer('turn off the alarm');
+      expect(resAlarm3, isNotNull);
+      expect(resAlarm3, contains('Alarm dismissed'));
+
+      final resTimer1 = await AlarmTimerTool.tryExecuteAlarmOrTimer('stop the timer');
+      expect(resTimer1, isNotNull);
+      expect(resTimer1, contains('Timer dismissed'));
+
+      final resTimer2 = await AlarmTimerTool.tryExecuteAlarmOrTimer('cancel timer');
+      expect(resTimer2, isNotNull);
+      expect(resTimer2, contains('Timer dismissed'));
+
+      final resShow = await AlarmTimerTool.tryExecuteAlarmOrTimer('show my alarms');
+      expect(resShow, isNotNull);
+      expect(resShow, contains('alarms'));
+    });
+
     test('ToolRegistry dispatches unhandled input gracefully', () async {
       final res = await ToolRegistry.dispatch('What is quantum physics?');
       expect(res.handled, isFalse);
@@ -87,6 +113,18 @@ void main() {
       expect(res.handled, isTrue);
       expect(res.toolName, equals('set_alarm_or_timer'));
       expect(res.reply, contains('6:25 PM'));
+    });
+
+    test('ToolRegistry dispatches stop alarm and stop timer commands', () async {
+      final resStopAlarm = await ToolRegistry.dispatch('stop alarm');
+      expect(resStopAlarm.handled, isTrue);
+      expect(resStopAlarm.toolName, equals('set_alarm_or_timer'));
+      expect(resStopAlarm.reply, contains('Alarm dismissed'));
+
+      final resStopTimer = await ToolRegistry.dispatch('cancel timer');
+      expect(resStopTimer.handled, isTrue);
+      expect(resStopTimer.toolName, equals('set_alarm_or_timer'));
+      expect(resStopTimer.reply, contains('Timer dismissed'));
     });
   });
 }
