@@ -23,6 +23,7 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
   - 🔋 **Battery Diagnostics**: Check live battery percentage and charging status completely offline (*"What's my battery percentage?"*, *"Check battery status"*).
   - 🔦 **Flashlight / Torch Control**: Turn on, turn off, or toggle the device flashlight completely offline (*"Turn on flashlight"*, *"Flashlight off"*).
   - 📅 **Scheduled Reminders**: Natural language reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
+  - 🧮 **Deterministic Offline Calculator**: Exact arithmetic evaluation, percentages, powers, and roots evaluated in <1ms without LLM hallucination (*"What is 15% of 80?"*, *"Calculate 1500 / 12"*, *"2 to the power of 8"*).
 - **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 - **Rich Markdown & Syntax Highlighting**: Assistant responses render formatted Markdown (headers, bullet lists, blockquotes, tables) with dedicated syntax-highlighted code blocks, language badge tags, horizontal scroll, and an animated "Copy" button.
 - **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
@@ -93,7 +94,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 
 ## Model behavior
 
-The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service checks the GGUF header before loading the model with llamadart; it does not currently verify a checksum or the full model file. Inference uses a 2,048-token context, four generation threads, and configurable max token limits (256 tokens for chat, 120 tokens for voice assistant) with specialized system prompts. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
+The current implementation downloads `Qwen3-0.6B-Q8_0.gguf` on first launch and caches it in the app support directory under `models/`. The service checks the GGUF header and computes a streaming cryptographic SHA-256 digest to verify supply-chain model integrity before loading it into llamadart. Inference uses a 2,048-token context, four generation threads, and configurable max token limits (256 tokens for chat, 120 tokens for voice assistant) with specialized system prompts. Subsequent launches reuse the cached file; model download and initialization timing and file size are written to debug logs.
 
 ## Inference package migration
 
