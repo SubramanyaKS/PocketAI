@@ -43,6 +43,7 @@ lib/
 │   ├── tool_registry.dart              # Central tool dispatcher & schema aggregation hub
 │   ├── alarm_tool.dart                 # Native Android Clock alarms & timers via Intent Plus
 │   ├── battery_tool.dart               # Battery level & charging status diagnostics
+│   ├── calculator_tool.dart            # Exact offline arithmetic, percentage & power evaluator
 │   ├── remainder_tools.dart            # Local notification & alarm scheduling service
 │   ├── reminder_parser.dart            # Offline natural language regex intent extractor
 │   └── torch_tool.dart                 # Device camera flashlight hardware controller

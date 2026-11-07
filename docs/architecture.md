@@ -12,7 +12,7 @@ flowchart TD
         App["PocketAiApp<br/>(Theme & Navigation Root)"]
         SetupScreen["ModelSetupScreen<br/>(Download & Initialization UI)"]
         HomeScreen["HomeScreen<br/>(Tab Shell Navigation)"]
-        ChatScreen["ChatScreen<br/>(Markdown, Prompts & History)"]
+        ChatScreen["ChatScreen<br/>(MarkdownBody, CodeBlockWidget & Prompts)"]
         VoiceScreen["VoiceAssistantScreen<br/>(Orb, Waves & Hands-Free Flow)"]
         SettingsScreen["SettingsScreen<br/>(Theme & System Preferences)"]
     end
@@ -34,6 +34,7 @@ flowchart TD
         Torch["TorchTool<br/>(Camera Flash Hardware Controller)"]
         Battery["BatteryTool<br/>(Level & Charging Status Reader)"]
         AlarmTimer["AlarmTimerTool<br/>(Native Android Clock & Timer Intent Dispatcher)"]
+        Calculator["CalculatorTool<br/>(Deterministic Offline Math & Percentage Parser)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -80,6 +81,7 @@ flowchart TD
     PocketContract --> ReminderHandler
     PocketContract --> Battery
     PocketContract --> AlarmTimer
+    PocketContract --> Calculator
 
     AI --> Think
     AI --> LlamaEngine
@@ -170,7 +172,12 @@ flowchart TD
     ClockAppAction --> ReturnAlarmReply[Return Alarm / Timer Confirmation]
     ReturnAlarmReply --> DisplayBubble
 
-    CheckAlarm -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
+    CheckAlarm -- No --> CheckCalc{Matches CalculatorTool?<br/>e.g., '15% of 80', '25 * 4'}
+    CheckCalc -- Yes --> ExecCalc[CalculatorTool: Pure Dart Recursive Descent Parser]
+    ExecCalc --> ReturnCalcReply[Return Exact Arithmetic Result]
+    ReturnCalcReply --> DisplayBubble
+
+    CheckCalc -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
     FormatContext --> SystemPrompt[Inject Role-Tailored System Prompt]
     SystemPrompt --> StreamGen[LocalAiService.askStream]
     StreamGen --> Filter[ThinkFilter: Strip &lt;think&gt; tags]
@@ -203,7 +210,7 @@ sequenceDiagram
     
     VoiceUI->>VoiceUI: Switch State: Thinking
     
-    alt Matches Registered PocketTool (Torch / Reminder / Battery / Alarm / Timer)
+    alt Matches Registered PocketTool (Torch / Reminder / Battery / Alarm / Timer / Calculator)
         VoiceUI->>Registry: ToolRegistry.dispatch(prompt)
         Registry-->>VoiceUI: ToolExecutionResult(handled: true, reply)
         VoiceUI->>VoiceUI: Switch State: Speaking
@@ -272,3 +279,4 @@ erDiagram
 | **Camera Flashlight** | `android.permission.CAMERA` | `TorchLight.isTorchAvailable()` pre-check |
 | **Battery Diagnostics** | None (Standard OS Broadcast) | `BatteryTool.getBatteryInfo()` exception guard |
 | **Native Alarms & Timers** | `com.android.alarm.permission.SET_ALARM` | Dispatches `ACTION_SET_ALARM`, `ACTION_SET_TIMER`, `ACTION_DISMISS_ALARM`, `ACTION_DISMISS_TIMER`, `ACTION_SHOW_ALARMS` via `android_intent_plus` (`SKIP_UI: true`) |
+| **Deterministic Calculator** | None (Pure Dart Execution) | Evaluates arithmetic, percentages & powers in <1ms; gracefully handles division by zero and delegates non-math to LLM |
