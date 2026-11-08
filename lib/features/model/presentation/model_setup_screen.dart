@@ -33,15 +33,18 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
   Future<void> _initializeModel() async {
     if (_isLoading) return;
 
+    final bootModel = await _aiService.resolveBootModel();
+
     setState(() {
       _isLoading = true;
       _error = null;
       _downloadProgress = null;
-      _status = 'Checking for AI model...';
+      _status = 'Checking for ${bootModel.name}...';
     });
 
     try {
       await _aiService.loadModel(
+        spec: bootModel,
         onDownloadProgress: (received, total) {
           if (!mounted) return;
 
@@ -50,10 +53,10 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
               final percent = (received * 100 / total).clamp(0, 100).round();
               _downloadProgress = percent / 100;
               _status = percent == 100
-                  ? 'Loading AI model...'
-                  : 'Downloading model: $percent%';
+                  ? 'Loading ${bootModel.name}...'
+                  : 'Downloading ${bootModel.name}: $percent%';
             } else {
-              _status = 'Downloading AI model...';
+              _status = 'Downloading ${bootModel.name}...';
             }
           });
         },

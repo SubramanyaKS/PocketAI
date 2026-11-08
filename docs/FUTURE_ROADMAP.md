@@ -1,106 +1,75 @@
-﻿# Pocket AI - Future Roadmap & Architecture Plan
+﻿# Pocket AI — Future Roadmap & Architecture Plan
 
-Here is the updated roadmap and milestone status for taking **Pocket AI** from a prototype to a full-featured, high-performance offline AI application.
-
----
-
-## Completed Milestones & Recent Improvements
-
-- [x] **Offline LLM Integration**: GGUF inference via llamadart (llama.cpp) with caching and header validation.
-- [x] **Full-Duplex Offline Voice Assistant**: Interactive pipeline (speech_to_text -> LocalAiService -> flutter_tts).
-- [x] **Futuristic Voice UI**: Glowing animated orb, rotating ambient rings, dynamic multi-state gradient colors (Idle, Listening, Thinking, Speaking), and live audio equalizer wave bars.
-- [x] **Dynamic Role-Tailored System Prompts**: Decoupled system prompts for Chat (defaultChatSystemPrompt) vs. Voice (defaultVoiceSystemPrompt), ensuring clean text formatting in chat and spoken, markdown-free responses in voice mode.
-- [x] **Global Riverpod Theming & Settings**: Unified light & dark mode themes across Chat, Voice Assistant, and Bottom Navigation, switchable in SettingsScreen.
-- [x] **Enhanced Prompt Suggestions**: Real-world starter ideas in the empty chat state.
-- [x] **Rich Markdown & Code Syntax Highlighting**: Dynamic Markdown formatting with custom code blocks, syntax themes, language detection badges, and copy button.
-- [x] **Multi-Model Catalog & Storage Management**: Curated GGUF catalog (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B), memory hot-swapping, and one-tap model deletion from Settings.
+Here is the updated roadmap and milestone status for taking **Pocket AI** from a prototype to a full-featured, high-performance offline AI assistant.
 
 ---
 
-## Next Phases & Planned Features
+## Completed Milestones & Implemented Features
 
-### 1. Voice Assistant Enhancements (Real-time Audio)
+### 1. Offline LLM Inference & Multi-Model Engine
+- [x] **Local GGUF Inference**: On-device 4-thread CPU execution via `llamadart` (`llama.cpp`) with 2,048-token context window.
+- [x] **Supply-Chain Integrity**: GGUF binary magic header validation (`0x47, 0x47, 0x55, 0x46`) and streaming SHA-256 cryptographic verification.
+- [x] **Multi-Model Catalog**: Curated model specs (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth.
+- [x] **RAM Hot-Swapping & Disk Management**: Switch active model dynamically in RAM with safe cleanup, and delete inactive models from disk in Settings to reclaim phone storage.
 
-#### A. Sentence-by-Sentence Streaming Audio Playback
-- **Current state**: Live streaming tokens display on screen, but audio playback waits for complete sentences or final generation.
-- **Goal**: Token buffer splits on delimiters (., ?, !, \n) and queues each sentence into flutter_tts sequentially.
-- **Benefit**: Slashes perceived voice latency from ~5 seconds down to ~1-2 seconds.
+### 2. Full-Duplex Voice Assistant
+- [x] **Streaming Sentence-by-Sentence Audio Playback**: Delimiter token buffer (`.`, `?`, `!`, `\n`) sequentially queues sentences to `flutter_tts` for instant sub-second spoken replies.
+- [x] **Auto-Continuous Hands-Free Dialogue Loop**: Automatic microphone reactivation with silence timeout and verbal exit commands (*"stop"*, *"exit"*, *"quit"*).
+- [x] **Tap-to-Interrupt / Barge-In**: Tapping the glowing orb cuts off TTS playback immediately and switches to listening.
+- [x] **Live Mic Amplitude Equalizer**: 24-band center-weighted Gaussian wave bars and glowing orb bloom dynamically scaled by real-time microphone RMS volume via `onSoundLevelChange` with exponential smoothing.
+- [x] **Enforced On-Device Speech Recognition**: `onDevice: true` in `SpeechListenOptions` guarantees voice audio stays strictly offline on the user's phone.
 
-#### B. Auto-Continuous Conversation (Hands-Free Loop)
-- Automatically trigger speech recognition after TTS audio completes, with a 3-5s silence timeout.
-- Enables natural back-and-forth dialogue without pressing buttons repeatedly.
+### 3. Central Tool Registry & Offline Device Actions
+- [x] **Polymorphic Tool Contract**: Extensible `PocketTool` interface with central `ToolRegistry` dispatching commands in <1ms without LLM latency or hallucination.
+- [x] **Native Android Alarms & Timers**: Set, stop, or dismiss system clock alarms and timers via `android_intent_plus` intents (`AlarmClock.ACTION_SET_ALARM`, `ACTION_SET_TIMER`, `ACTION_DISMISS_ALARM`).
+- [x] **Scheduled Reminders**: Exact device reminders with `flutter_local_notifications` and timezone support, persisted to SQLite.
+- [x] **Deterministic Offline Calculator**: Recursive descent parser for exact arithmetic, order of operations (PEMDAS), powers, square roots, and natural language percentage queries.
+- [x] **Application Launcher**: Intent dispatcher for Camera, YouTube, Maps, WhatsApp, Chrome, Gallery, Email, Dialer, Messages, and Spotify.
+- [x] **System Settings Shortcuts**: Direct navigation to Android settings panels (Wi-Fi, Bluetooth, Display, Sound, Battery, Location, Airplane Mode).
+- [x] **Hardware Flashlight & Battery**: Camera torch control via `torch_light` and battery diagnostics via `battery_plus`.
 
-#### C. Voice Interrupt / Barge-In
-- If the user starts speaking while the AI is talking, immediately cancel TTS playback and switch back to listening state.
+### 4. Chat Presentation & Theming
+- [x] **Rich Markdown & Syntax Highlighting**: Formatted markdown (headers, tables, blockquotes) with syntax-highlighted code blocks, language badges, and one-tap copy button (`flutter_markdown_plus` + `flutter_highlighter`).
+- [x] **Global Riverpod Theming**: System default, Light mode, and OLED Dark mode themes.
+- [x] **Dynamic Role-Tailored System Prompts**: Specialized persona instructions for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 
----
-
-### 2. Offline Device Tasks & Action Execution (Alarms, Timers, Reminders)
-
-Elevate Pocket AI into an **offline device assistant** (private Siri / Google Assistant alternative).
-
-#### A. Alarms & Timers (Native Android System Intents)
-- **Commands**: 'Set an alarm for 7:30 AM', 'Set a 15-minute pasta timer', 'Wake me up at 6:00'.
-- **Implementation**:
-  - Regex / pattern intent detector with local LLM fallback.
-  - Launch Android AlarmClock.ACTION_SET_ALARM and AlarmClock.ACTION_SET_TIMER via android_intent_plus. Runs natively in the phone's clock app even if Pocket AI is closed.
-
-#### B. Offline Reminders & Task Lists
-- **Commands**: 'Remind me to call John in 2 hours', 'Add to my to-do list: buy groceries'.
-- **Implementation**:
-  - Store scheduled reminders in local SQLite database.
-  - Trigger device notifications via flutter_local_notifications.
-
-#### C. System Toggles & Utilities
-- Offline shortcuts: 'Turn on flashlight' (torch_light), 'Open Wi-Fi settings', 'Battery status'.
+### 5. Zero-Cloud Privacy & Security
+- [x] **Sandboxed Local Storage**: All messages, conversations, and reminders stored in private internal SQLite (`chat_history.db`).
+- [x] **Cloud Backup Guard**: `android:allowBackup="false"` in `AndroidManifest.xml` prevents automated Google cloud backups or ADB data extraction.
+- [x] **One-Tap Permanent Data Wipe**: "Wipe All Chat History" in Settings permanently erases the SQLite database with confirmation guard.
+- [x] **Zero Telemetry**: No tracking SDKs, no analytics, no ad networks.
 
 ---
 
-### 3. Multi-Model Support & Model Management Screen
+## Upcoming Phases & Planned Features
 
-Allow users to download and switch between models based on their device specifications:
-
-#### Model Catalog
-- **Ultra-lightweight / Fast (Voice & Quick replies)**:
-  - SmolLM2-360M-Instruct (~250 MB)
-  - Qwen2.5-0.5B-Instruct (~400 MB)
-- **Balanced (Default)**:
-  - Qwen3-0.6B-Q8_0 (Current)
-  - Qwen2.5-1.5B-Instruct-Q4_K_M (~1.0 GB)
-- **High Intelligence / Coding / Complex Reasoning**:
-  - Llama-3.2-1B-Instruct or Llama-3.2-3B-Instruct
-  - Phi-3.5-mini-instruct (devices with 8GB+ RAM)
-
-#### Management UI
-- Download, pause, resume, and delete models from local storage.
-- Switch active model dynamically with memory cleanup (LlamaEngine.dispose() / reload).
-
----
-
-### 4. Offline RAG (Retrieval-Augmented Generation) & Document Chat
-
-Enable users to chat with their private files completely offline:
-1. **Local Document Ingestion**: Pick PDF, TXT, EPUB, or Markdown files via file_picker.
-2. **Text Chunking**: Split text into paragraphs (200-500 words).
-3. **Local Embedding & Vector Search**: Lightweight local embeddings (all-MiniLM-L6-v2 via ONNX or SQLite cosine similarity).
+### Phase 5: Offline Document Chat (Local RAG)
+Enable users to query their private documents completely offline without uploading to any cloud:
+1. **Local Document Ingestion**: Pick PDF, TXT, EPUB, or Markdown files via `file_picker`.
+2. **Text Chunking**: Split text into semantic paragraphs (200-500 words).
+3. **Local Embedding & Vector Search**: Lightweight local embeddings (`all-MiniLM-L6-v2` via ONNX or SQLite cosine similarity).
 4. **Context Injection**: Retrieve relevant chunks and inject them into the system prompt for grounded, private answers.
 
----
-
-### 5. Chat UI/UX & Performance Optimization
-
-- [x] **Rich Markdown & Code Highlighting**: Implemented with `flutter_markdown_plus` and `flutter_highlighter` featuring language headers, dark/light themes, and animated clipboard copy.
-- **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via llama.cpp compilation flags for 2x-4x tokens/second.
+### Phase 6: Hardware Acceleration & Performance Tuning
+- **Inference Performance Controls in Settings**: User-configurable CPU generation threads (`2`, `4`, `6`, `8`) and context window size (`1K`, `2K`, `4K`).
+- **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via `llama.cpp` compilation flags for 2x-4x tokens/second.
 - **Background Keep-Alive**: Lifecycle management so switching apps during long generations doesn't abort inference.
 
+### Phase 7: Conversation Management
+- **Conversation Search**: Search past chat sessions by keyword in the history drawer.
+- **Export & Share**: One-tap export of conversation transcripts as Markdown (`.md`) or plain text.
+
 ---
 
-## Roadmap Priority Order
+## Roadmap Milestone Tracker
 
-| Phase | Milestone | Focus Area | Expected Impact |
+| Phase | Milestone | Focus Area | Status |
 |---|---|---|---|
-| **Phase 1** | **Streaming TTS & Hands-Free Loop** | Voice Assistant | ~1s instant audio response, conversational flow |
-| **Phase 2** | **Offline Alarms, Timers & Reminders** | Device Tasks | Everyday utility without internet |
-| **Phase 3** | **Markdown & Code Syntax Highlighting** *(Completed)* | Chat Screen | Clean readable output for code, lists & tables |
-| **Phase 4** | **Multi-Model Manager** *(Completed)* | Core AI | Flexibility for budget vs flagship devices |
-| **Phase 5** | **Offline Document Chat (RAG)** | Local Knowledge | Private study & document search on-device |
+| **Phase 1** | **Streaming TTS & Hands-Free Loop** | Voice Assistant | **Completed** |
+| **Phase 2** | **Offline Alarms, Timers, Tools & Device Controls** | Device Tasks | **Completed** |
+| **Phase 3** | **Markdown & Code Syntax Highlighting** | Chat Screen | **Completed** |
+| **Phase 4** | **Multi-Model Manager & Decoupled JSON Catalog** | Core AI | **Completed** |
+| **Phase 5** | **Live Mic Amplitude Equalizer & Security Enhancements** | Voice & Privacy | **Completed** |
+| **Phase 6** | **Offline Document Chat (Local RAG)** | Local Knowledge | **Next Priority** |
+| **Phase 7** | **Inference Controls & Hardware Acceleration** | Performance | Planned |
+| **Phase 8** | **Conversation Search & Export** | Productivity | Planned |

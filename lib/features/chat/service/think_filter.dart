@@ -65,7 +65,13 @@ class ThinkFilter {
   String _visibleText(String text) {
     if (_hasEmittedText) return text;
 
-    final trimmed = text.trimLeft();
+    var trimmed = text.trimLeft();
+
+    // Defense-in-depth: strip any accidental /no_think tag echoed at start of generation
+    if (trimmed.startsWith('/no_think')) {
+      trimmed = trimmed.substring('/no_think'.length).trimLeft();
+    }
+
     if (trimmed.isNotEmpty) {
       _hasEmittedText = true;
     }

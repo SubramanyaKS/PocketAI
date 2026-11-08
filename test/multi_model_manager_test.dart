@@ -211,6 +211,26 @@ void main() {
       expect(deleted, isTrue);
       expect(await file.exists(), isFalse);
     });
+
+    test('resolveBootModel falls back to defaultModel when no model is downloaded', () async {
+      final bootModel = await aiService.resolveBootModel();
+      expect(bootModel.id, ModelCatalog.defaultModel.id);
+    });
+
+    test('resolveBootModel auto-detects existing downloaded model on disk', () async {
+      final smolModel = ModelCatalog.getById('smollm2-360m');
+      final file = await aiService.getModelFile(smolModel);
+      await file.parent.create(recursive: true);
+      // Write GGUF header magic bytes so isModelDownloaded returns true
+      await file.writeAsBytes([0x47, 0x47, 0x55, 0x46, 0x01, 0x00, 0x00, 0x00]);
+
+      final bootModel = await aiService.resolveBootModel();
+      expect(bootModel.id, smolModel.id);
+
+      await file.delete();
+      final configFile = File('${tempDir.path}/active_model_id.txt');
+      if (await configFile.exists()) await configFile.delete();
+    });
   });
 
   group('ManageModelsScreen & SettingsScreen Widget Tests', () {
