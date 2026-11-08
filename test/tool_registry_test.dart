@@ -13,6 +13,8 @@ void main() {
       expect(names, contains('get_battery_info'));
       expect(names, contains('set_alarm_or_timer'));
       expect(names, contains('calculator'));
+      expect(names, contains('device_settings'));
+      expect(names, contains('app_launcher'));
     });
 
     test('AlarmTimerTool parses alarm phrases (colons, dots, spaces, meridians)', () async {

@@ -4,6 +4,8 @@ import 'torch_tool.dart';
 import 'reminder_parser.dart';
 import 'alarm_tool.dart';
 import 'calculator_tool.dart';
+import 'device_settings_tool.dart';
+import 'app_launcher_tool.dart';
 
 class ToolExecutionResult {
   final bool handled;
@@ -33,6 +35,8 @@ class ToolRegistry {
     const BatteryTool(),
     const AlarmTimerTool(),
     const CalculatorTool(),
+    const DeviceSettingsTool(),
+    const AppLauncherTool(),
   ];
 
   /// Returns immutable list of registered tools.

@@ -42,15 +42,21 @@ lib/
 │   ├── pocket_tool.dart                # Abstract PocketTool contract (name, definition, tryExecute)
 │   ├── tool_registry.dart              # Central tool dispatcher & schema aggregation hub
 │   ├── alarm_tool.dart                 # Native Android Clock alarms & timers via Intent Plus
+│   ├── app_launcher_tool.dart          # Launch Camera, YouTube, Maps, WhatsApp, etc.
 │   ├── battery_tool.dart               # Battery level & charging status diagnostics
 │   ├── calculator_tool.dart            # Exact offline arithmetic, percentage & power evaluator
+│   ├── device_settings_tool.dart       # Wi-Fi, Bluetooth, Display, Sound settings shortcuts
 │   ├── remainder_tools.dart            # Local notification & alarm scheduling service
 │   ├── reminder_parser.dart            # Offline natural language regex intent extractor
 │   └── torch_tool.dart                 # Device camera flashlight hardware controller
 │
 ├── features/
-│   ├── model/presentation/
-│   │   └── model_setup_screen.dart     # Download progress & model preparation screen
+│   ├── model/
+│   │   ├── models/
+│   │   │   ├── model_spec.dart         # Model entity (id, size, url, RAM reqs)
+│   │   │   └── model_catalog.dart      # Curated catalog (SmolLM2, Qwen2.5, Qwen3)
+│   │   └── presentation/
+│   │       └── model_setup_screen.dart # Download progress & model preparation screen
 │   │
 │   ├── home/presentation/
 │   │   ├── home_screen.dart            # Tab scaffold & bottom navigation bar
@@ -76,7 +82,8 @@ lib/
 │   │   └── voice_utils.dart            # Spoken text sanitization & visual state styling
 │   │
 │   └── settings/presentation/
-│       └── settings_screen.dart        # Appearance settings & privacy verification
+│       ├── settings_screen.dart        # Appearance & model storage settings
+│       └── manage_models_screen.dart   # Model catalog, hot-swap & delete manager
 │
 └── utils/
     ├── constant.dart                   # GGUF download URL, filename & storage constants

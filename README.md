@@ -24,6 +24,9 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
   - 🔦 **Flashlight / Torch Control**: Turn on, turn off, or toggle the device flashlight completely offline (*"Turn on flashlight"*, *"Flashlight off"*).
   - 📅 **Scheduled Reminders**: Natural language reminder alerts scheduled with `flutter_local_notifications` and persisted to SQLite (*"Remind me to drink water in 10 minutes"*).
   - 🧮 **Deterministic Offline Calculator**: Exact arithmetic evaluation, percentages, powers, and roots evaluated in <1ms without LLM hallucination (*"What is 15% of 80?"*, *"Calculate 1500 / 12"*, *"2 to the power of 8"*).
+  - 🚀 **Application Launcher**: Instant app opening via Android intents (*"Open YouTube"*, *"Launch Camera"*, *"Open WhatsApp"*, *"Open Maps"*, *"Open Browser"*, *"Open Spotify"*).
+  - ⚙️ **System Settings Shortcuts**: Direct navigation to Android settings panels without searching (*"Open Wi-Fi settings"*, *"Open Bluetooth"*, *"Open Display settings"*, *"Volume settings"*).
+- **Multi-Model Manager & Storage Control**: Select, hot-swap, and delete models on-device (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B). Inactive models stay on disk for instant offline switching, with one-tap deletion from Settings to reclaim phone storage.
 - **Dynamic Role-Tailored System Prompts**: Specialized persona instructions optimized for text chat (markdown/bullets) vs. voice mode (concise spoken sentences without emojis or asterisks).
 - **Rich Markdown & Syntax Highlighting**: Assistant responses render formatted Markdown (headers, bullet lists, blockquotes, tables) with dedicated syntax-highlighted code blocks, language badge tags, horizontal scroll, and an animated "Copy" button.
 - **Riverpod Theme Engine**: Complete light and dark mode support with system default following, controllable via dedicated Settings.
@@ -88,7 +91,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
 - [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
 - [x] **Auto-Continuous Conversation & Barge-in**: Hands-free conversation loop with silence timeout, verbal exit detection, and tap-to-interrupt.
-- [ ] **Multi-Model Catalog**: Choose and manage GGUF models on-device (0.5B, 1.5B, 3B).
+- [x] **Multi-Model Catalog & Storage Manager**: Choose, hot-swap, and delete GGUF models on-device (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) directly in Settings.
 - [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
 - [x] **Markdown & Code Highlighting**: Rich formatting, syntax highlighting, language badges, and one-tap copy button in chat.
 

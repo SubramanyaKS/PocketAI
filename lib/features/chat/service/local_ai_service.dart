@@ -8,34 +8,100 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pocket_ai/features/chat/models/chat_message.dart';
 import 'package:pocket_ai/features/chat/models/performance_metrics.dart';
 import 'package:pocket_ai/features/chat/service/think_filter.dart';
-import 'package:pocket_ai/utils/constant.dart';
+import 'package:pocket_ai/features/model/models/model_catalog.dart';
+import 'package:pocket_ai/features/model/models/model_spec.dart';
 
-class LocalAiService {
-  static const _modelFileName = modelFileName;
-  static const _modelUrl = modelUrl;
+class LocalAiService extends ChangeNotifier {
+  static LocalAiService? _currentInstance;
+
+  /// Global or shared instance for cross-screen state access.
+  static LocalAiService get instance => _currentInstance ??= LocalAiService();
+
+  ModelSpec _activeModel = ModelCatalog.defaultModel;
+
+  /// Currently active model specification.
+  ModelSpec get activeModel => _activeModel;
 
   PerformanceMetrics? _performanceMetrics;
-
   PerformanceMetrics? get performanceMetrics => _performanceMetrics;
 
   final LlamaEngine _engine = LlamaEngine(LlamaBackend());
   final Dio _dio = Dio();
 
   bool _isLoaded = false;
+  bool get isLoaded => _isLoaded;
+
+  LocalAiService() {
+    _currentInstance = this;
+  }
+
+  /// Returns the target local File for a given model specification.
+  Future<File> getModelFile([ModelSpec? spec]) async {
+    final modelSpec = spec ?? _activeModel;
+    final appDir = await getApplicationSupportDirectory();
+    final modelDir = Directory.fromUri(appDir.uri.resolve('models'));
+    return File('${modelDir.path}/${modelSpec.fileName}');
+  }
+
+  /// Checks if a specific model specification is downloaded and has a valid GGUF header.
+  Future<bool> isModelDownloaded(ModelSpec spec) async {
+    final file = await getModelFile(spec);
+    return await _hasGgufHeader(file);
+  }
+
+  /// Computes the total storage space in bytes occupied by all downloaded .gguf models.
+  Future<int> getTotalModelsSizeBytes() async {
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final modelDir = Directory.fromUri(appDir.uri.resolve('models'));
+      if (!await modelDir.exists()) return 0;
+
+      int total = 0;
+      await for (final entity in modelDir.list()) {
+        if (entity is File && entity.path.endsWith('.gguf')) {
+          total += await entity.length();
+        }
+      }
+      return total;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Deletes a downloaded model file from storage to free up disk space.
+  /// Throws [StateError] if attempting to delete the currently active model.
+  Future<bool> deleteModel(ModelSpec spec) async {
+    if (spec.id == _activeModel.id) {
+      throw StateError(
+        'Cannot delete the currently active model. Switch to another model first.',
+      );
+    }
+
+    final file = await getModelFile(spec);
+    if (await file.exists()) {
+      await file.delete();
+      debugPrint('[MODEL] Deleted model file: ${file.path}');
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
 
   Future<String> _prepareModel({
+    ModelSpec? spec,
     void Function(int received, int total)? onDownloadProgress,
   }) async {
+    final modelSpec = spec ?? _activeModel;
     final appDir = await getApplicationSupportDirectory();
     final modelDir = Directory.fromUri(appDir.uri.resolve('models'));
 
     await modelDir.create(recursive: true);
 
-    final modelFile = File('${modelDir.path}/$_modelFileName');
+    final modelFile = File('${modelDir.path}/${modelSpec.fileName}');
 
     // Reuse an existing valid model.
     if (await _hasGgufHeader(modelFile)) {
-      debugPrint('[PERF] Existing model found; skipping download.');
+      debugPrint('[PERF] Existing model found; skipping download: ${modelSpec.name}');
       return modelFile.path;
     }
 
@@ -53,7 +119,7 @@ class LocalAiService {
 
     try {
       await _dio.download(
-        _modelUrl,
+        modelSpec.downloadUrl,
         partialFile.path,
         onReceiveProgress: onDownloadProgress,
       );
@@ -78,11 +144,13 @@ class LocalAiService {
         throw StateError('The downloaded file is not a valid GGUF model.');
       }
 
-      // Cryptographic SHA-256 supply-chain verification
-      if (!await _verifySha256(partialFile, modelSha256)) {
-        throw StateError(
-          'Security alert: Model file failed SHA-256 integrity verification.',
-        );
+      // Cryptographic SHA-256 supply-chain verification (if checksum provided)
+      if (modelSpec.sha256 != null) {
+        if (!await _verifySha256(partialFile, modelSpec.sha256!)) {
+          throw StateError(
+            'Security alert: Model file failed SHA-256 integrity verification.',
+          );
+        }
       }
 
       await partialFile.rename(modelFile.path);
@@ -132,18 +200,21 @@ class LocalAiService {
         header[3] == 0x46;
   }
 
+  /// Loads the default or specified model into memory.
   Future<void> loadModel({
+    ModelSpec? spec,
     void Function(int received, int total)? onDownloadProgress,
   }) async {
-    if (_isLoaded) return;
+    final targetSpec = spec ?? _activeModel;
+    if (_isLoaded && _activeModel.id == targetSpec.id) return;
 
     final totalTimer = Stopwatch()..start();
     final prepareTimer = Stopwatch()..start();
     Stopwatch? nativeLoadTimer;
 
     try {
-      // Stage 1: Find or download and validate the GGUF file.
       final modelPath = await _prepareModel(
+        spec: targetSpec,
         onDownloadProgress: onDownloadProgress,
       );
 
@@ -161,7 +232,6 @@ class LocalAiService {
         '${modelSizeMB.toStringAsFixed(1)} MB',
       );
 
-      // Stage 2: Initialize the llamadart llama.cpp engine.
       nativeLoadTimer = Stopwatch()..start();
 
       try {
@@ -172,14 +242,20 @@ class LocalAiService {
       } finally {
         nativeLoadTimer.stop();
 
+        _performanceMetrics = PerformanceMetrics(
+          modelLoadTimeMs: nativeLoadTimer.elapsedMilliseconds,
+        );
+
         debugPrint(
           '[PERF] Native model load: '
           '${(nativeLoadTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
         );
       }
 
+      _activeModel = targetSpec;
       _isLoaded = true;
-      debugPrint('[PERF] Model loaded successfully');
+      notifyListeners();
+      debugPrint('[PERF] Model "${targetSpec.name}" loaded successfully');
     } finally {
       if (prepareTimer.isRunning) {
         prepareTimer.stop();
@@ -197,6 +273,17 @@ class LocalAiService {
         '${(totalTimer.elapsedMilliseconds / 1000).toStringAsFixed(2)} s',
       );
     }
+  }
+
+  /// Hot-swaps the active model in memory with a newly chosen catalog model.
+  Future<void> switchModel(
+    ModelSpec spec, {
+    void Function(int received, int total)? onDownloadProgress,
+  }) async {
+    await loadModel(
+      spec: spec,
+      onDownloadProgress: onDownloadProgress,
+    );
   }
 
   static const String defaultChatSystemPrompt = '''

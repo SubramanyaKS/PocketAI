@@ -13,6 +13,7 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 - [x] **Global Riverpod Theming & Settings**: Unified light & dark mode themes across Chat, Voice Assistant, and Bottom Navigation, switchable in SettingsScreen.
 - [x] **Enhanced Prompt Suggestions**: Real-world starter ideas in the empty chat state.
 - [x] **Rich Markdown & Code Syntax Highlighting**: Dynamic Markdown formatting with custom code blocks, syntax themes, language detection badges, and copy button.
+- [x] **Multi-Model Catalog & Storage Management**: Curated GGUF catalog (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B), memory hot-swapping, and one-tap model deletion from Settings.
 
 ---
 
@@ -101,5 +102,5 @@ Enable users to chat with their private files completely offline:
 | **Phase 1** | **Streaming TTS & Hands-Free Loop** | Voice Assistant | ~1s instant audio response, conversational flow |
 | **Phase 2** | **Offline Alarms, Timers & Reminders** | Device Tasks | Everyday utility without internet |
 | **Phase 3** | **Markdown & Code Syntax Highlighting** *(Completed)* | Chat Screen | Clean readable output for code, lists & tables |
-| **Phase 4** | **Multi-Model Manager** | Core AI | Flexibility for budget vs flagship devices |
+| **Phase 4** | **Multi-Model Manager** *(Completed)* | Core AI | Flexibility for budget vs flagship devices |
 | **Phase 5** | **Offline Document Chat (RAG)** | Local Knowledge | Private study & document search on-device |
