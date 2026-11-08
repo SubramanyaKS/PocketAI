@@ -137,6 +137,15 @@ class ChatDatabase {
     await db.delete('conversations', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Permanently delete all chat history (conversations and messages).
+  Future<void> clearAllChatHistory() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('messages');
+      await txn.delete('conversations');
+    });
+  }
+
   // ------------------ Reminders Methods ------------------
 
   Future<void> saveReminder({

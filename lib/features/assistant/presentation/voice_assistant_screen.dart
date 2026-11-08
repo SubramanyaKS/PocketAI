@@ -35,6 +35,9 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   String _aiResponse = '';
   String _statusMessage = 'Tap to start conversation';
 
+  final ValueNotifier<double> _liveSoundLevel = ValueNotifier<double>(0.0);
+  double _smoothedSoundLevel = 0.0;
+
   late final AnimationController _pulseController;
   late final AnimationController _waveController;
   late final AnimationController _orbitController;
@@ -206,11 +209,16 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
           : 'Listening to your voice...';
     });
 
+    _liveSoundLevel.value = 0.0;
+    _smoothedSoundLevel = 0.0;
+
     await _speech.listen(
       listenOptions: stt.SpeechListenOptions(
+        onDevice: true,
         partialResults: true,
         listenMode: stt.ListenMode.confirmation,
       ),
+      onSoundLevelChange: _updateSoundLevel,
       onResult: (result) {
         if (!mounted) return;
         setState(() {
@@ -225,12 +233,36 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     );
   }
 
+  void _updateSoundLevel(double level) {
+    if (!mounted || _state != AssistantState.listening) return;
+    if (level.isNaN || level.isInfinite) return;
+
+    // Normalize cross-platform audio levels:
+    // Android RMS dB is typically in the ~ -2 to 10+ range
+    // iOS dB is typically in the ~ -60 to 0 dB range
+    double normalized;
+    if (level < 0 && level >= -160) {
+      normalized = (level + 60.0) / 60.0;
+    } else {
+      normalized = level / 10.0;
+    }
+    normalized = normalized.clamp(0.0, 1.0);
+
+    // Exponential moving average filter for fluid visual wave dynamics
+    _smoothedSoundLevel = (_smoothedSoundLevel * 0.6) + (normalized * 0.4);
+    _liveSoundLevel.value = _smoothedSoundLevel;
+  }
+
   Future<void> _stopListening() async {
+    _liveSoundLevel.value = 0.0;
+    _smoothedSoundLevel = 0.0;
     await _speech.stop();
     _onSpeechDone();
   }
 
   void _onSpeechDone() {
+    _liveSoundLevel.value = 0.0;
+    _smoothedSoundLevel = 0.0;
     if (_state != AssistantState.listening) return;
 
     if (_userSpeech.trim().isEmpty) {
@@ -430,6 +462,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
   @override
   void dispose() {
     _speechRunId++;
+    _liveSoundLevel.dispose();
     _pulseController.dispose();
     _waveController.dispose();
     _orbitController.dispose();
@@ -957,39 +990,60 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
             // Live Audio Wave Animation Bar
             SizedBox(
-              height: 36,
-              child: AnimatedBuilder(
-                animation: _waveController,
-                builder: (context, child) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(24, (index) {
-                      final waveOffset = index * 0.26;
-                      final rawSin = math.sin(
-                          (_waveController.value * 2 * math.pi) + waveOffset);
-                      final normalized = (rawSin + 1) / 2;
+              height: 40,
+              child: ValueListenableBuilder<double>(
+                valueListenable: _liveSoundLevel,
+                builder: (context, micLevel, _) {
+                  return AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(24, (index) {
+                          // Center-weighted distribution: center bars react most vividly to sound
+                          final distFromCenter = (index - 11.5).abs() / 11.5;
+                          final bellWeight = 1.0 - (distFromCenter * 0.55);
 
-                      final height = isPulsing
-                          ? 6 + (normalized * 26)
-                          : (_state == AssistantState.thinking
-                              ? 4 + (math.sin(index * 0.5) * 6).abs()
-                              : 4.0);
+                          final waveOffset = index * 0.28;
+                          final rawSin = math.sin(
+                              (_waveController.value * 2 * math.pi) + waveOffset);
+                          final normalizedSin = (rawSin + 1) / 2;
 
-                      return Container(
-                        width: 3.5,
-                        height: height,
-                        margin: const EdgeInsets.symmetric(horizontal: 2.2),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          color: isPulsing
-                              ? primaryColor.withValues(
-                                  alpha: 0.4 + (normalized * 0.6))
-                              : (isDark
-                                  ? Colors.white.withValues(alpha: 0.15)
-                                  : const Color(0xFFCBD5E1)),
-                        ),
+                          double height;
+                          if (_state == AssistantState.listening) {
+                            // Live microphone amplitude audio waves
+                            final liveVoiceAmp = micLevel * bellWeight;
+                            height = 4.0 + (liveVoiceAmp * (10 + (normalizedSin * 20))) + (normalizedSin * 2.5);
+                          } else if (_state == AssistantState.speaking) {
+                            // TTS speaking wave
+                            height = 6.0 + (normalizedSin * 26);
+                          } else if (_state == AssistantState.thinking) {
+                            // Soft undulating thinking pulse
+                            height = 4.0 + (math.sin(index * 0.5 + (_waveController.value * math.pi * 2)).abs() * 8);
+                          } else {
+                            // Idle state
+                            height = 4.0;
+                          }
+
+                          height = height.clamp(3.5, 36.0);
+
+                          return Container(
+                            width: 3.5,
+                            height: height,
+                            margin: const EdgeInsets.symmetric(horizontal: 2.2),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: isPulsing
+                                  ? primaryColor.withValues(
+                                      alpha: (0.35 + (normalizedSin * 0.35) + (micLevel * 0.3)).clamp(0.0, 1.0))
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.15)
+                                      : const Color(0xFFCBD5E1)),
+                            ),
+                          );
+                        }),
                       );
-                    }),
+                    },
                   );
                 },
               ),
@@ -1027,29 +1081,45 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
                           );
                         },
                       ),
-                      AnimatedBuilder(
-                        animation: _pulseAnimation,
-                        builder: (context, child) {
-                          final scale =
-                              isPulsing ? _pulseAnimation.value : 1.0;
-                          return Transform.scale(
-                            scale: scale,
-                            child: Container(
-                              width: 104,
-                              height: 104,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: primaryColor.withValues(
-                                      alpha: isPulsing ? 0.55 : 0.25,
-                                    ),
-                                    blurRadius: isPulsing ? 32 : 18,
-                                    spreadRadius: isPulsing ? 8 : 2,
+                      ValueListenableBuilder<double>(
+                        valueListenable: _liveSoundLevel,
+                        builder: (context, micLevel, _) {
+                          return AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              final micScaleBoost = (_state == AssistantState.listening)
+                                  ? (micLevel * 0.16)
+                                  : 0.0;
+                              final scale = (isPulsing ? _pulseAnimation.value : 1.0) + micScaleBoost;
+                              final micSpreadBoost = (_state == AssistantState.listening)
+                                  ? (micLevel * 8.0)
+                                  : 0.0;
+                              final micBlurBoost = (_state == AssistantState.listening)
+                                  ? (micLevel * 16.0)
+                                  : 0.0;
+
+                              return Transform.scale(
+                                scale: scale,
+                                child: Container(
+                                  width: 104,
+                                  height: 104,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: primaryColor.withValues(
+                                          alpha: isPulsing
+                                              ? (0.55 + (micLevel * 0.25)).clamp(0.0, 1.0)
+                                              : 0.25,
+                                        ),
+                                        blurRadius: (isPulsing ? 32 : 18) + micBlurBoost,
+                                        spreadRadius: (isPulsing ? 8 : 2) + micSpreadBoost,
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),

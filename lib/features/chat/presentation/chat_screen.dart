@@ -398,6 +398,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (available) {
         setState(() => isListen = true);
         _speech.listen(
+          listenOptions: stt.SpeechListenOptions(
+            onDevice: true,
+            partialResults: true,
+          ),
           onResult: (val) => setState(() {
             _controller.text = val.recognizedWords;
           }),

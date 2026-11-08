@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocket_ai/features/chat/service/chat_database.dart';
 import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
 import 'package:pocket_ai/features/settings/presentation/manage_models_screen.dart';
 import 'package:pocket_ai/provider/theme_provider.dart';
@@ -273,6 +274,120 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 32),
 
+          // PRIVACY & DATA SECURITY SECTION
+          Text(
+            'PRIVACY & DATA SECURITY',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Material(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Guarantee Card
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.verified_user_rounded,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Zero-Cloud Offline Guarantee',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '• 100% on-device CPU inference\n• On-device speech recognition\n• Sandboxed local storage (No cloud backup)\n• Zero telemetry, trackers, or ads',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.45,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                  // Clear All Chat History Action
+                  ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_forever_rounded,
+                        color: Color(0xFFEF4444),
+                      ),
+                    ),
+                    title: const Text(
+                      'Wipe All Chat History',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Color(0xFFEF4444),
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Permanently delete all conversations from device storage',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => _confirmWipeAllChatHistory(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
           // ABOUT POCKET AI SECTION
           Text(
             'ABOUT POCKET AI',
@@ -337,6 +452,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmWipeAllChatHistory(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Wipe All Conversations?'),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete all conversations and message history from your device. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Wipe All Data'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await ChatDatabase.instance.clearAllChatHistory();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All chat history wiped successfully.'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    }
   }
 }
 

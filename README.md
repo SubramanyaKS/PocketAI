@@ -92,6 +92,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 - [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
 - [x] **Auto-Continuous Conversation & Barge-in**: Hands-free conversation loop with silence timeout, verbal exit detection, and tap-to-interrupt.
 - [x] **Multi-Model Catalog & Storage Manager**: Choose, hot-swap, and delete GGUF models on-device (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) directly in Settings.
+- [x] **Live Mic Amplitude Equalizer & Visualizer**: 24-band animated waveform bars and glowing orb dynamically scaled by real-time microphone RMS volume.
 - [ ] **Offline Document Chat (RAG)**: Private on-device Q&A for local PDFs and notes.
 - [x] **Markdown & Code Highlighting**: Rich formatting, syntax highlighting, language badges, and one-tap copy button in chat.
 
