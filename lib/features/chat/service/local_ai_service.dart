@@ -87,6 +87,64 @@ class LocalAiService extends ChangeNotifier {
     return false;
   }
 
+  /// Persists the active model ID to disk so selections survive app restarts.
+  Future<void> _saveActiveModelId(String id) async {
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final configFile = File('${appDir.path}/active_model_id.txt');
+      await configFile.writeAsString(id.trim());
+      debugPrint('[MODEL] Persisted active model ID: $id');
+    } catch (e) {
+      debugPrint('[MODEL] Failed to persist active model ID: $e');
+    }
+  }
+
+  /// Reads the persisted active model ID from disk, if available.
+  Future<String?> getSavedActiveModelId() async {
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final configFile = File('${appDir.path}/active_model_id.txt');
+      if (await configFile.exists()) {
+        final content = (await configFile.readAsString()).trim();
+        if (content.isNotEmpty) return content;
+      }
+    } catch (e) {
+      debugPrint('[MODEL] Failed to read active model ID: $e');
+    }
+    return null;
+  }
+
+  /// Discovers the best model to boot with:
+  /// 1. The persisted active model (if downloaded and valid).
+  /// 2. Any catalog model that is already downloaded and valid on disk.
+  /// 3. Default catalog model if nothing is downloaded yet.
+  Future<ModelSpec> resolveBootModel() async {
+    // 1. Check if user previously selected and saved an active model
+    final savedId = await getSavedActiveModelId();
+    if (savedId != null) {
+      final savedSpec = ModelCatalog.getById(savedId);
+      if (await isModelDownloaded(savedSpec)) {
+        debugPrint('[MODEL] Booting with saved active model: ${savedSpec.name}');
+        _activeModel = savedSpec;
+        return savedSpec;
+      }
+    }
+
+    // 2. Check if ANY model in the catalog is already downloaded and valid on disk
+    for (final spec in ModelCatalog.allModels) {
+      if (await isModelDownloaded(spec)) {
+        debugPrint('[MODEL] Auto-detected downloaded model on disk: ${spec.name}');
+        _activeModel = spec;
+        await _saveActiveModelId(spec.id);
+        return spec;
+      }
+    }
+
+    // 3. Fall back to default catalog model if nothing is downloaded yet
+    _activeModel = ModelCatalog.defaultModel;
+    return _activeModel;
+  }
+
   Future<String> _prepareModel({
     ModelSpec? spec,
     void Function(int received, int total)? onDownloadProgress,
@@ -205,7 +263,7 @@ class LocalAiService extends ChangeNotifier {
     ModelSpec? spec,
     void Function(int received, int total)? onDownloadProgress,
   }) async {
-    final targetSpec = spec ?? _activeModel;
+    final targetSpec = spec ?? await resolveBootModel();
     if (_isLoaded && _activeModel.id == targetSpec.id) return;
 
     final totalTimer = Stopwatch()..start();
@@ -254,6 +312,7 @@ class LocalAiService extends ChangeNotifier {
 
       _activeModel = targetSpec;
       _isLoaded = true;
+      await _saveActiveModelId(targetSpec.id);
       notifyListeners();
       debugPrint('[PERF] Model "${targetSpec.name}" loaded successfully');
     } finally {
@@ -325,6 +384,11 @@ Strict Operating Rules:
 
     final effectiveSystemPrompt = systemPrompt ?? defaultChatSystemPrompt;
 
+    // Qwen3 is a thinking model where /no_think turns off internal reasoning tags.
+    // Non-reasoning models (SmolLM2, Qwen2.5, etc.) must not have /no_think appended,
+    // otherwise they get confused and echo the unknown slash command back to the user.
+    final isThinkingModel = _activeModel.id.toLowerCase().contains('qwen3');
+
     final tokenStream = _engine.create(
       [
         LlamaChatMessage.fromText(
@@ -334,7 +398,9 @@ Strict Operating Rules:
         for (var i = 0; i < conversation.length; i++)
           LlamaChatMessage.fromText(
             role: LlamaChatRole.values.byName(conversation[i].role),
-            text: i == conversation.length - 1 && conversation[i].role == 'user'
+            text: i == conversation.length - 1 &&
+                    conversation[i].role == 'user' &&
+                    isThinkingModel
                 ? '${conversation[i].content}\n/no_think'
                 : conversation[i].content,
           ),

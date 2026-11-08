@@ -47,5 +47,16 @@ void main() {
 
       expect(output, 'Visible answer ');
     });
+
+    test('removes /no_think tag echoed at the start of stream', () {
+      final filter = ThinkFilter();
+
+      final output = [
+        filter.process('/no_think Hello there!'),
+        filter.finish(),
+      ].join();
+
+      expect(output, 'Hello there!');
+    });
   });
 }
