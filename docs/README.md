@@ -28,8 +28,12 @@ Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first 
 ## 🗂️ Clean Source Directory Structure
 
 ```text
+assets/
+└── models/
+    └── model_catalog.json              # Decoupled single source of truth for model specifications
+
 lib/
-├── main.dart                           # Flutter bindings & notification initialization
+├── main.dart                           # Flutter bindings, notification & model catalog initialization
 ├── app.dart                            # MaterialApp root, route setup & theme definitions
 │
 ├── provider/

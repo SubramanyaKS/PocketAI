@@ -220,7 +220,9 @@ sequenceDiagram
     participant Speaker as TTS (flutter_tts)
 
     User->>VoiceUI: Tap Orb (State: Listening)
-    VoiceUI->>Mic: speech.listen(partialResults: true)
+    VoiceUI->>Mic: speech.listen(onDevice: true, onSoundLevelChange)
+    Mic-->>VoiceUI: Live Audio RMS Amplitude Level (EMA smoothed)
+    VoiceUI->>VoiceUI: Drive 24-Band Waveform Bars & Orb Bloom
     User->>Mic: Speaks voice command
     Mic-->>VoiceUI: Recognized Words Stream
     User->>VoiceUI: Silence or Tap Stop
@@ -299,3 +301,41 @@ erDiagram
 | **Deterministic Calculator** | None (Pure Dart Execution) | Evaluates arithmetic, percentages & powers in <1ms; gracefully handles division by zero and delegates non-math to LLM |
 | **System Settings Shortcuts** | None (Standard Android Intents) | Dispatches `android.settings.*` intents (WIFI, BLUETOOTH, DISPLAY, SOUND, BATTERY) |
 | **Application Launcher** | None (Standard Intent Action / Category) | Dispatches launcher intents for Camera, YouTube, Maps, WhatsApp, Chrome, Gallery, Email, Dialer, Messages, Spotify |
+
+---
+
+## 7. Zero-Cloud Privacy & Data Security Architecture
+
+Pocket AI enforces an uncompromising zero-cloud privacy architecture across all layers of the stack:
+
+```mermaid
+flowchart TD
+    subgraph Device_Enclave ["Hardware & Sandbox Enclave"]
+        Input["User Audio & Text"]
+        STT["On-Device SpeechRecognizer<br/>(onDevice: true)"]
+        RAM["RAM / CPU llama.cpp<br/>(llamadart local execution)"]
+        DB[("Internal SQLite<br/>/data/data/.../chat_history.db<br/>allowBackup = false")]
+        Wipe["Wipe Action<br/>(ChatDatabase.clearAllChatHistory)"]
+    end
+
+    subgraph Blocked_Cloud ["Blocked External Cloud Services"]
+        NoCloud["No Telemetry / No Analytics / No Cloud LLMs"]
+    end
+
+    Input --> STT
+    STT --> RAM
+    Input --> RAM
+    RAM --> DB
+    Wipe -.->|Permanent deletion| DB
+    DB x-.-x Blocked_Cloud
+    RAM x-.-x Blocked_Cloud
+```
+
+### Key Security Safeguards:
+1. **100% On-Device CPU Inference**: All prompt evaluations, token generation, and context management occur exclusively in local process memory via C++ `llama.cpp`. Zero prompt or completion data leaves the phone.
+2. **Enforced Local Speech Recognition**: Voice recognition is configured with `onDevice: true`, instructing Android to use local speech recognition packages rather than cloud transcription servers.
+3. **Internal Sandboxed Storage & No Cloud Backups**: The SQLite database (`chat_history.db`) is stored in Android's private app directory with `android:allowBackup="false"` in `AndroidManifest.xml`, preventing ADB extraction or Google Drive backups from exposing user messages.
+4. **Permanent One-Tap Data Wipe**: The Settings screen provides an atomic `ChatDatabase.clearAllChatHistory()` action that permanently deletes all stored messages and conversations with confirmation guards.
+5. **Supply Chain Verification**: Model files downloaded from Hugging Face are verified with binary GGUF magic bytes (`0x47, 0x47, 0x55, 0x46`) and SHA-256 cryptographic checksums before memory loading.
+6. **Decoupled Model Catalog**: Model configurations are decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth, loaded asynchronously at application boot.
+
