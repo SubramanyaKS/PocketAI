@@ -14,7 +14,8 @@ flowchart TD
         HomeScreen["HomeScreen<br/>(Tab Shell Navigation)"]
         ChatScreen["ChatScreen<br/>(MarkdownBody, CodeBlockWidget & Prompts)"]
         VoiceScreen["VoiceAssistantScreen<br/>(Orb, Waves & Hands-Free Flow)"]
-        SettingsScreen["SettingsScreen<br/>(Theme & System Preferences)"]
+        SettingsScreen["SettingsScreen<br/>(Theme, Model Storage & Settings)"]
+        ManageModelsScreen["ManageModelsScreen<br/>(Model Catalog, Hot-Swap & Delete UI)"]
     end
 
     subgraph State_Layer ["State Management"]
@@ -35,6 +36,8 @@ flowchart TD
         Battery["BatteryTool<br/>(Level & Charging Status Reader)"]
         AlarmTimer["AlarmTimerTool<br/>(Native Android Clock & Timer Intent Dispatcher)"]
         Calculator["CalculatorTool<br/>(Deterministic Offline Math & Percentage Parser)"]
+        DevSettings["DeviceSettingsTool<br/>(Wi-Fi, Bluetooth, Display, Sound Panels)"]
+        AppLauncher["AppLauncherTool<br/>(Camera, YouTube, Maps, WhatsApp Launchers)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -64,6 +67,8 @@ flowchart TD
     HomeScreen --> ChatScreen
     HomeScreen --> VoiceScreen
     SettingsScreen -.->|Mutates State| ThemeState
+    SettingsScreen --> ManageModelsScreen
+    ManageModelsScreen -->|Switch / Delete Model| AI
     ThemeState -.->|Rebuilds UI| App
 
     ChatScreen -->|Context Window| ChatUtils
@@ -82,6 +87,8 @@ flowchart TD
     PocketContract --> Battery
     PocketContract --> AlarmTimer
     PocketContract --> Calculator
+    PocketContract --> DevSettings
+    PocketContract --> AppLauncher
 
     AI --> Think
     AI --> LlamaEngine
@@ -177,7 +184,17 @@ flowchart TD
     ExecCalc --> ReturnCalcReply[Return Exact Arithmetic Result]
     ReturnCalcReply --> DisplayBubble
 
-    CheckCalc -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
+    CheckCalc -- No --> CheckSettings{Matches DeviceSettingsTool?<br/>e.g., 'open wifi', 'bluetooth settings'}
+    CheckSettings -- Yes --> ExecSettings[DeviceSettingsTool: Launch android.settings Intent]
+    ExecSettings --> ReturnSettingsReply[Return Settings Launch Confirmation]
+    ReturnSettingsReply --> DisplayBubble
+
+    CheckSettings -- No --> CheckLauncher{Matches AppLauncherTool?<br/>e.g., 'open youtube', 'open camera'}
+    CheckLauncher -- Yes --> ExecLauncher[AppLauncherTool: Launch App Package / Intent]
+    ExecLauncher --> ReturnLauncherReply[Return App Launch Confirmation]
+    ReturnLauncherReply --> DisplayBubble
+
+    CheckLauncher -- No --> FormatContext[ChatUtils: Prune & Build Context Window]
     FormatContext --> SystemPrompt[Inject Role-Tailored System Prompt]
     SystemPrompt --> StreamGen[LocalAiService.askStream]
     StreamGen --> Filter[ThinkFilter: Strip &lt;think&gt; tags]
@@ -210,7 +227,7 @@ sequenceDiagram
     
     VoiceUI->>VoiceUI: Switch State: Thinking
     
-    alt Matches Registered PocketTool (Torch / Reminder / Battery / Alarm / Timer / Calculator)
+    alt Matches Registered PocketTool (Torch / Reminder / Battery / Alarm / Timer / Calculator / Settings / Launcher)
         VoiceUI->>Registry: ToolRegistry.dispatch(prompt)
         Registry-->>VoiceUI: ToolExecutionResult(handled: true, reply)
         VoiceUI->>VoiceUI: Switch State: Speaking
@@ -280,3 +297,5 @@ erDiagram
 | **Battery Diagnostics** | None (Standard OS Broadcast) | `BatteryTool.getBatteryInfo()` exception guard |
 | **Native Alarms & Timers** | `com.android.alarm.permission.SET_ALARM` | Dispatches `ACTION_SET_ALARM`, `ACTION_SET_TIMER`, `ACTION_DISMISS_ALARM`, `ACTION_DISMISS_TIMER`, `ACTION_SHOW_ALARMS` via `android_intent_plus` (`SKIP_UI: true`) |
 | **Deterministic Calculator** | None (Pure Dart Execution) | Evaluates arithmetic, percentages & powers in <1ms; gracefully handles division by zero and delegates non-math to LLM |
+| **System Settings Shortcuts** | None (Standard Android Intents) | Dispatches `android.settings.*` intents (WIFI, BLUETOOTH, DISPLAY, SOUND, BATTERY) |
+| **Application Launcher** | None (Standard Intent Action / Category) | Dispatches launcher intents for Camera, YouTube, Maps, WhatsApp, Chrome, Gallery, Email, Dialer, Messages, Spotify |

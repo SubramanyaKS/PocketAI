@@ -1,0 +1,46 @@
+[
+  {
+    "id": "qwen3-0.6b-q8_0",
+    "name": "Qwen3 0.6B Q8_0",
+    "description": "Balanced default model with excellent conversational flow, tool use, and reasoning.",
+    "category": "Balanced (Default)",
+    "fileName": "Qwen3-0.6B-Q8_0.gguf",
+    "downloadUrl": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf",
+    "sizeBytes": 639446688,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "recommendedRam": "2GB+ RAM"
+  },
+  {
+    "id": "smollm2-360m",
+    "name": "SmolLM2 360M Instruct",
+    "description": "Ultra-compact model by Hugging Face optimized for sub-second voice replies and minimal battery use.",
+    "category": "Ultra-Fast & Voice",
+    "fileName": "smollm2-360m-instruct-q8_0.gguf",
+    "downloadUrl": "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf",
+    "sizeBytes": 386270432,
+    "sha256": null,
+    "recommendedRam": "1.5GB+ RAM"
+  },
+  {
+    "id": "qwen2.5-0.5b",
+    "name": "Qwen2.5 0.5B Instruct",
+    "description": "Fast lightweight assistant with strong multilingual and structured formatting capabilities.",
+    "category": "Compact & Fast",
+    "fileName": "qwen2.5-0.5b-instruct-q8_0.gguf",
+    "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf",
+    "sizeBytes": 524822720,
+    "sha256": null,
+    "recommendedRam": "2GB+ RAM"
+  },
+  {
+    "id": "qwen2.5-1.5b-q4",
+    "name": "Qwen2.5 1.5B Instruct",
+    "description": "High intelligence model with superior code generation, analysis, and complex reasoning.",
+    "category": "High Intelligence & Code",
+    "fileName": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "sizeBytes": 1030000000,
+    "sha256": null,
+    "recommendedRam": "4GB+ RAM"
+  }
+]

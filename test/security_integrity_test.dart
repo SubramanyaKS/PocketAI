@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
+import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:pocket_ai/utils/constant.dart';
 
 void main() {
@@ -46,6 +50,52 @@ void main() {
       expect(streamedDigest.toString().toLowerCase(), isNot(equals(fakeExpectedHash)));
 
       await tempDir.delete(recursive: true);
+    });
+
+    test('AndroidManifest configures allowBackup to false', () {
+      final manifestFile = File('android/app/src/main/AndroidManifest.xml');
+      expect(manifestFile.existsSync(), isTrue);
+      final content = manifestFile.readAsStringSync();
+      expect(content, contains('android:allowBackup="false"'));
+    });
+
+    testWidgets('SettingsScreen displays Privacy & Security section with Wipe Data action',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final aiService = LocalAiService();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: SettingsScreen(aiService: aiService),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('PRIVACY & DATA SECURITY'), findsOneWidget);
+      expect(find.text('Zero-Cloud Offline Guarantee'), findsOneWidget);
+      expect(find.text('Wipe All Chat History'), findsOneWidget);
+
+      // Tap on Wipe All Chat History
+      await tester.tap(find.text('Wipe All Chat History'));
+      await tester.pumpAndSettle();
+
+      // Verify confirmation dialog
+      expect(find.text('Wipe All Conversations?'), findsOneWidget);
+      expect(find.text('Wipe All Data'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Wipe All Conversations?'), findsNothing);
     });
   });
 }

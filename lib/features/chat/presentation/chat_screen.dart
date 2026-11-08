@@ -398,6 +398,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (available) {
         setState(() => isListen = true);
         _speech.listen(
+          listenOptions: stt.SpeechListenOptions(
+            onDevice: true,
+            partialResults: true,
+          ),
           onResult: (val) => setState(() {
             _controller.text = val.recognizedWords;
           }),
@@ -471,7 +475,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               tooltip: 'Settings',
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(aiService: widget.aiService),
+                  ),
                 );
               },
               icon: const Icon(Icons.settings_outlined),
@@ -552,7 +558,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(aiService: widget.aiService),
+                      ),
                     );
                   },
                 ),
