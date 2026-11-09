@@ -1,6 +1,6 @@
-﻿# Pocket AI — Future Roadmap & Architecture Plan
+﻿# Arivu AI — Future Roadmap & Architecture Plan
 
-Here is the updated roadmap and milestone status for taking **Pocket AI** from a prototype to a full-featured, high-performance offline AI assistant.
+Here is the updated roadmap and milestone status for taking **Arivu AI** from a prototype to a full-featured, high-performance offline AI assistant.
 
 ---
 
@@ -54,16 +54,22 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 - [x] **One-Tap Clipboard Copy**: Copy formatted conversation directly to clipboard with instant feedback.
 - [x] **File Generator**: Save and share sanitized `.md` transcript files directly from the app bar.
 
+### 8. Inference Parameters & Hardware Tuning
+- [x] **Configurable CPU Generation Threads**: Selection chips (1, 2, 4, 6, 8) with dynamic engine reload without restarting the app.
+- [x] **Sampling Temperature Slider**: Fine-grained 0.0 to 1.0 adjustment with Strict (0.0–0.2), Balanced (0.3–0.5), and Creative (0.6–1.0) semantic badges.
+- [x] **Context Window Tuning**: Discrete chips for 1024 (Eco), 2048 (Default), and 4096 (Deep) token contexts.
+- [x] **Max Generation Limits**: 128, 256, 512, and 1024 token generation caps.
+- [x] **Persistent Storage & One-Tap Reset**: Auto-saves to `inference_config.json` with an instant "Reset Defaults" action in Settings.
+
 ---
 
 ## Upcoming Phases & Planned Features
 
-### Phase 8: Hardware Acceleration & Performance Tuning
-- **Inference Performance Controls in Settings**: User-configurable CPU generation threads (`2`, `4`, `6`, `8`) and context window size (`1K`, `2K`, `4K`).
+### Phase 9: Hardware Acceleration (Vulkan / NPU)
 - **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via `llama.cpp` compilation flags for 2x-4x tokens/second.
 - **Background Keep-Alive**: Lifecycle management so switching apps during long generations doesn't abort inference.
 
-### Phase 9: Multi-Document Collections & Advanced RAG
+### Phase 10: Multi-Document Collections & Advanced RAG
 - **Knowledge Base Collections**: Multi-document indexing and persistent local vector search.
 
 ---
@@ -79,5 +85,6 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 | **Phase 5** | **Live Mic Amplitude Equalizer & Security Enhancements** | Voice & Privacy | **Completed** |
 | **Phase 6** | **Offline Document Chat (Local RAG)** | Local Knowledge | **Completed** |
 | **Phase 7** | **Conversation Search & Chat Export** | Productivity | **Completed** |
-| **Phase 8** | **Inference Controls & Hardware Acceleration** | Performance | **Next Priority** |
-| **Phase 8** | **Conversation Search & Export** | Productivity | Planned |
+| **Phase 8** | **Inference Parameters & Hardware Tuning** | Performance | **Completed** |
+| **Phase 9** | **Hardware Acceleration (Vulkan / NPU)** | Performance | **Next Priority** |
+| **Phase 10** | **Multi-Document Collections & Advanced RAG** | Local Knowledge | Planned |

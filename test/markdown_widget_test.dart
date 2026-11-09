@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/chat/widgets/code_block_widget.dart';
-import 'package:pocket_ai/features/chat/widgets/markdown_code_builder.dart';
+import 'package:arivu_ai/features/chat/widgets/code_block_widget.dart';
+import 'package:arivu_ai/features/chat/widgets/markdown_code_builder.dart';
 
 void main() {
   testWidgets('Renders Markdown with CodeBlockWidget for code blocks', (tester) async {
@@ -12,7 +12,7 @@ Here is some **bold text** and `inline_code`.
 
 ```dart
 void main() {
-  print("Hello Pocket AI");
+  print("Hello Arivu AI");
 }
 ```
 ''';

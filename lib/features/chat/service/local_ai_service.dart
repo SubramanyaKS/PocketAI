@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -5,11 +6,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:llamadart/llamadart.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pocket_ai/features/chat/models/chat_message.dart';
-import 'package:pocket_ai/features/chat/models/performance_metrics.dart';
-import 'package:pocket_ai/features/chat/service/think_filter.dart';
-import 'package:pocket_ai/features/model/models/model_catalog.dart';
-import 'package:pocket_ai/features/model/models/model_spec.dart';
+import 'package:arivu_ai/features/chat/models/chat_message.dart';
+import 'package:arivu_ai/features/chat/models/performance_metrics.dart';
+import 'package:arivu_ai/features/chat/service/think_filter.dart';
+import 'package:arivu_ai/features/model/models/inference_config.dart';
+import 'package:arivu_ai/features/model/models/model_catalog.dart';
+import 'package:arivu_ai/features/model/models/model_spec.dart';
 
 class LocalAiService extends ChangeNotifier {
   static LocalAiService? _currentInstance;
@@ -21,6 +23,11 @@ class LocalAiService extends ChangeNotifier {
 
   /// Currently active model specification.
   ModelSpec get activeModel => _activeModel;
+
+  InferenceConfig _inferenceConfig = const InferenceConfig();
+
+  /// User-configurable inference parameters.
+  InferenceConfig get inferenceConfig => _inferenceConfig;
 
   PerformanceMetrics? _performanceMetrics;
   PerformanceMetrics? get performanceMetrics => _performanceMetrics;
@@ -114,11 +121,71 @@ class LocalAiService extends ChangeNotifier {
     return null;
   }
 
+  /// Persists inference configuration to disk.
+  Future<void> _saveInferenceConfig(InferenceConfig config) async {
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final configFile = File('${appDir.path}/inference_config.json');
+      await configFile.writeAsString(jsonEncode(config.toJson()));
+      debugPrint('[INFERENCE] Saved inference parameters: ${config.toJson()}');
+    } catch (e) {
+      debugPrint('[INFERENCE] Failed to save inference config: $e');
+    }
+  }
+
+  /// Loads saved inference parameters from disk.
+  Future<InferenceConfig> loadSavedInferenceConfig() async {
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final configFile = File('${appDir.path}/inference_config.json');
+      if (await configFile.exists()) {
+        final content = await configFile.readAsString();
+        if (content.trim().isNotEmpty) {
+          final map = jsonDecode(content) as Map<String, dynamic>;
+          _inferenceConfig = InferenceConfig.fromJson(map);
+          return _inferenceConfig;
+        }
+      }
+    } catch (e) {
+      debugPrint('[INFERENCE] Failed to load inference config: $e');
+    }
+    return _inferenceConfig;
+  }
+
+  /// Updates inference parameters, persists to disk, and re-applies ModelParams if loaded.
+  Future<void> updateInferenceConfig(InferenceConfig newConfig) async {
+    final oldConfig = _inferenceConfig;
+    _inferenceConfig = newConfig;
+    notifyListeners();
+    await _saveInferenceConfig(newConfig);
+
+    // If contextSize or numberOfThreads changed and model is currently loaded,
+    // re-initialize ModelParams on the active model.
+    if (_isLoaded &&
+        (oldConfig.contextSize != newConfig.contextSize ||
+         oldConfig.numberOfThreads != newConfig.numberOfThreads)) {
+      debugPrint(
+        '[INFERENCE] Re-applying ModelParams: threads=${newConfig.numberOfThreads}, contextSize=${newConfig.contextSize}',
+      );
+      final modelFile = await getModelFile(_activeModel);
+      if (await modelFile.exists()) {
+        await _engine.setModel(
+          LlamaModel(ModelSource.path(modelFile.path)),
+          params: ModelParams(
+            contextSize: newConfig.contextSize,
+            numberOfThreads: newConfig.numberOfThreads,
+          ),
+        );
+      }
+    }
+  }
+
   /// Discovers the best model to boot with:
   /// 1. The persisted active model (if downloaded and valid).
   /// 2. Any catalog model that is already downloaded and valid on disk.
   /// 3. Default catalog model if nothing is downloaded yet.
   Future<ModelSpec> resolveBootModel() async {
+    await loadSavedInferenceConfig();
     // 1. Check if user previously selected and saved an active model
     final savedId = await getSavedActiveModelId();
     if (savedId != null) {
@@ -295,7 +362,10 @@ class LocalAiService extends ChangeNotifier {
       try {
         await _engine.setModel(
           LlamaModel(ModelSource.path(modelPath)),
-          params: const ModelParams(contextSize: 2048, numberOfThreads: 4),
+          params: ModelParams(
+            contextSize: _inferenceConfig.contextSize,
+            numberOfThreads: _inferenceConfig.numberOfThreads,
+          ),
         );
       } finally {
         nativeLoadTimer.stop();
@@ -346,7 +416,7 @@ class LocalAiService extends ChangeNotifier {
   }
 
   static const String defaultChatSystemPrompt = '''
-You are Pocket AI, an intelligent, privacy-focused offline AI assistant running locally on the user's mobile device.
+You are Arivu AI, an intelligent, privacy-focused offline AI assistant running locally on the user's mobile device.
 
 Strict Operating Rules:
 1. Relevance & Precision: Answer ONLY what the user explicitly asks. Do not provide unrequested background trivia or off-topic information.
@@ -356,7 +426,7 @@ Strict Operating Rules:
 ''';
 
   static const String defaultVoiceSystemPrompt = '''
-You are Pocket Voice, an on-device voice assistant speaking directly through text-to-speech.
+You are Arivu Voice, an on-device voice assistant speaking directly through text-to-speech.
 
 Strict Operating Rules:
 1. Instant Direct Answer: Deliver your answer in 1 or 2 concise, natural, spoken English sentences. Never repeat or summarize the user's question.
@@ -368,12 +438,15 @@ Strict Operating Rules:
   Stream<String> askStream(
     List<ChatMessage> conversation, {
     String? systemPrompt,
-    int maxTokens = 256,
-    double temperature = 0.3,
+    int? maxTokens,
+    double? temperature,
   }) async* {
     if (!_isLoaded) {
       throw StateError('Model has not been loaded');
     }
+
+    final effectiveMaxTokens = maxTokens ?? _inferenceConfig.maxTokens;
+    final effectiveTemp = temperature ?? _inferenceConfig.temperature;
 
     final filter = ThinkFilter();
 
@@ -405,7 +478,7 @@ Strict Operating Rules:
                 : conversation[i].content,
           ),
       ],
-      params: GenerationParams(maxTokens: maxTokens, temp: temperature),
+      params: GenerationParams(maxTokens: effectiveMaxTokens, temp: effectiveTemp),
       enableThinking: false,
     );
 

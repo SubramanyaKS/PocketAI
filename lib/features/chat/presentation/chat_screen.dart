@@ -1,22 +1,22 @@
-import 'package:pocket_ai/tools/tool_registry.dart';
-import 'package:pocket_ai/features/chat/service/chat_utils.dart';
+import 'package:arivu_ai/tools/tool_registry.dart';
+import 'package:arivu_ai/features/chat/service/chat_utils.dart';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:pocket_ai/features/chat/models/chat_message.dart';
-import 'package:pocket_ai/features/chat/service/chat_database.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
-import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
+import 'package:arivu_ai/features/chat/models/chat_message.dart';
+import 'package:arivu_ai/features/chat/service/chat_database.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/chat/widgets/chat_empty_widget.dart';
+import 'package:arivu_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:pocket_ai/features/chat/service/chat_export_service.dart';
-import 'package:pocket_ai/features/chat/widgets/markdown_code_builder.dart';
-import 'package:pocket_ai/features/document/models/attached_document.dart';
-import 'package:pocket_ai/features/document/service/document_service.dart';
+import 'package:arivu_ai/features/chat/service/chat_export_service.dart';
+import 'package:arivu_ai/features/chat/widgets/markdown_code_builder.dart';
+import 'package:arivu_ai/features/document/models/attached_document.dart';
+import 'package:arivu_ai/features/document/service/document_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.aiService});
@@ -129,7 +129,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _handleExportOption(String action) async {
     if (_messages.isEmpty) return;
 
-    String title = 'Pocket AI Conversation';
+    String title = 'Arivu AI Conversation';
     if (_currentConversationId != null) {
       final matches = _conversations.where((c) => c['id'] == _currentConversationId);
       if (matches.isNotEmpty) {
@@ -697,7 +697,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pocket AI',
+                      'Arivu AI',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -960,7 +960,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Pocket AI is thinking...',
+                              'Arivu AI is thinking...',
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                               ),
@@ -1307,7 +1307,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             decoration: InputDecoration(
                               hintText: _attachedDocument != null
                                   ? 'Ask about ${_attachedDocument!.name}...'
-                                  : 'Message Pocket AI...',
+                                  : 'Message Arivu AI...',
                               hintStyle: TextStyle(
                                 color: isDark
                                     ? const Color(0xFF64748B)

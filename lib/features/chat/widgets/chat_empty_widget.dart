@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/chat/widgets/prompt_suggestion.dart';
+import 'package:arivu_ai/features/chat/widgets/prompt_suggestion.dart';
 
 class ChatEmptyWidget extends StatelessWidget {
   const ChatEmptyWidget({super.key, required this.onPromptSelected});
@@ -44,7 +44,7 @@ class ChatEmptyWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      'Welcome to Pocket AI',
+                      'Welcome to Arivu AI',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF20283A),

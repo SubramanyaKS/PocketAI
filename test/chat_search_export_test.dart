@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/chat/models/chat_message.dart';
-import 'package:pocket_ai/features/chat/service/chat_export_service.dart';
+import 'package:arivu_ai/features/chat/models/chat_message.dart';
+import 'package:arivu_ai/features/chat/service/chat_export_service.dart';
 
 void main() {
   group('ChatExportService Unit Tests', () {
@@ -13,13 +13,13 @@ void main() {
         ChatMessage(
           conversationId: 1,
           role: 'user',
-          content: 'What is Pocket AI?',
+          content: 'What is Arivu AI?',
           createdAt: DateTime(2026, 11, 9, 10, 0),
         ),
         ChatMessage(
           conversationId: 1,
           role: 'assistant',
-          content: 'Pocket AI is an offline on-device AI assistant.',
+          content: 'Arivu AI is an offline on-device AI assistant.',
           createdAt: DateTime(2026, 11, 9, 10, 1),
         ),
       ];
@@ -31,12 +31,12 @@ void main() {
       );
 
       expect(markdown, startsWith('# Project Overview'));
-      expect(markdown, contains('Exported from Pocket AI on 2026-11-09 10:00:00'));
+      expect(markdown, contains('Exported from Arivu AI on 2026-11-09 10:00:00'));
       expect(markdown, contains('---'));
       expect(markdown, contains('### 👤 User'));
-      expect(markdown, contains('What is Pocket AI?'));
-      expect(markdown, contains('### 🤖 Pocket AI'));
-      expect(markdown, contains('Pocket AI is an offline on-device AI assistant.'));
+      expect(markdown, contains('What is Arivu AI?'));
+      expect(markdown, contains('### 🤖 Arivu AI'));
+      expect(markdown, contains('Arivu AI is an offline on-device AI assistant.'));
     });
 
     test('formatAsMarkdown handles code blocks and special characters', () {
@@ -62,7 +62,7 @@ void main() {
       );
 
       expect(markdown, contains('```dart\nvoid main() => print("Hello");\n```'));
-      expect(markdown, contains('### 🤖 Pocket AI'));
+      expect(markdown, contains('### 🤖 Arivu AI'));
     });
 
     test('createExportFile creates and writes to a sanitized .md file on disk', () async {
@@ -77,7 +77,7 @@ void main() {
 
       expect(await file.exists(), isTrue);
       expect(file.path.endsWith('.md'), isTrue);
-      expect(file.path, contains('pocket_ai_financial_report_2026_q3'));
+      expect(file.path, contains('arivu_ai_financial_report_2026_q3'));
 
       final content = await file.readAsString();
       expect(content, equals(markdown));

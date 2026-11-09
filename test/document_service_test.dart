@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/document/models/attached_document.dart';
-import 'package:pocket_ai/features/document/service/document_service.dart';
+import 'package:arivu_ai/features/document/models/attached_document.dart';
+import 'package:arivu_ai/features/document/service/document_service.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 void main() {
@@ -76,7 +76,7 @@ void main() {
     final service = DocumentService.instance;
 
     test('Extracts plain text from .txt and .md files', () {
-      const rawString = '# Pocket AI\nLocal offline assistant.';
+      const rawString = '# Arivu AI\nLocal offline assistant.';
       final bytes = Uint8List.fromList(utf8.encode(rawString));
 
       final txtResult = service.extractText(name: 'notes.txt', bytes: bytes);
@@ -111,7 +111,7 @@ void main() {
     });
 
     test('Short text produces a single chunk', () {
-      const text = 'Pocket AI is a fully private offline assistant.';
+      const text = 'Arivu AI is a fully private offline assistant.';
       final chunks = service.chunkText(text, targetChunkChars: 300);
 
       expect(chunks.length, 1);
@@ -153,7 +153,7 @@ void main() {
       ),
       const DocumentChunk(
         index: 2,
-        text: 'Pocket AI is an offline LLM app running quantized GGUF models on mobile CPU.',
+        text: 'Arivu AI is an offline LLM app running quantized GGUF models on mobile CPU.',
       ),
       const DocumentChunk(
         index: 3,
@@ -163,14 +163,14 @@ void main() {
 
     test('Ranks chunk with matching terms at the top', () {
       final results = service.retrieveRelevantChunks(
-        'How does Pocket AI run GGUF models offline?',
+        'How does Arivu AI run GGUF models offline?',
         chunks,
         maxChunks: 2,
       );
 
       expect(results.isNotEmpty, isTrue);
       expect(results.first.index, 2);
-      expect(results.first.text, contains('Pocket AI is an offline LLM app'));
+      expect(results.first.text, contains('Arivu AI is an offline LLM app'));
     });
 
     test('Ranks battery info for battery query', () {

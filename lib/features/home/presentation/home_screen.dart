@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/assistant/presentation/voice_assistant_screen.dart';
-import 'package:pocket_ai/features/chat/presentation/chat_screen.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/assistant/presentation/voice_assistant_screen.dart';
+import 'package:arivu_ai/features/chat/presentation/chat_screen.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.aiService});

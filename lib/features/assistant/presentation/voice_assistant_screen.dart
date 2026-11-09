@@ -1,12 +1,12 @@
-import 'package:pocket_ai/tools/tool_registry.dart';
-import 'package:pocket_ai/features/assistant/presentation/voice_utils.dart';
+import 'package:arivu_ai/tools/tool_registry.dart';
+import 'package:arivu_ai/features/assistant/presentation/voice_utils.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:pocket_ai/features/chat/models/chat_message.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
+import 'package:arivu_ai/features/chat/models/chat_message.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 
@@ -179,7 +179,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       SnackBar(
         content: Text(
           _isContinuousMode
-              ? 'Hands-free continuous mode enabled: Pocket Voice will auto-listen.'
+              ? 'Hands-free continuous mode enabled: Arivu Voice will auto-listen.'
               : 'Hands-free continuous mode disabled.',
         ),
         duration: const Duration(seconds: 2),
@@ -304,7 +304,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
 
     setState(() {
       _state = AssistantState.thinking;
-      _statusMessage = 'Pocket AI is thinking...';
+      _statusMessage = 'Arivu AI is thinking...';
       _aiResponse = '';
     });
 
@@ -513,7 +513,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Pocket Voice',
+                    'Arivu Voice',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -922,7 +922,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Pocket AI',
+                                        'Arivu AI',
                                         style: TextStyle(
                                           color: isDark
                                               ? const Color(0xFF94A3B8)

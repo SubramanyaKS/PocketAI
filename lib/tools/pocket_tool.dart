@@ -1,4 +1,4 @@
-/// Base interface that every offline tool in Pocket AI must implement.
+/// Base interface that every offline tool in Arivu AI must implement.
 abstract class PocketTool {
   /// Unique identifier of the tool.
   String get name;

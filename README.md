@@ -1,4 +1,4 @@
-# Pocket AI
+# Arivu AI (ಅರಿವು AI)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.38%2B-02569B?logo=flutter" alt="Flutter" />
@@ -7,11 +7,11 @@
   <img src="https://img.shields.io/badge/Local-AI-6C63FF" alt="Local AI" />
 </p>
 
-Pocket AI is a Flutter-based local AI chat app that downloads a GGUF language model on first use and runs inference directly on the device. It keeps the model in the app support directory so it can be reused later without downloading it again.
+Arivu AI (from the Kannada word *ಅರಿವು*, meaning awareness, insight, and consciousness) is a Flutter-based local AI assistant that runs quantized GGUF language models directly on mobile CPU with zero cloud dependencies and 100% offline privacy.
 
 ## Overview
 
-The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llamadart` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, and displays download progress. Once the model is loaded, the app opens chat and reuses the same loaded service.
+The app boots with an on-device language model (supporting SmolLM2-360M, SmolLM2-1.7B, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) loaded via `llamadart` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, validates supply-chain cryptographic digests, and displays download progress. Once loaded, prompts and voice interactions are evaluated entirely on-device.
 
 ## Features
 
@@ -27,6 +27,7 @@ The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llam
   - 🚀 **Application Launcher**: Instant app opening via Android intents (*"Open YouTube"*, *"Launch Camera"*, *"Open WhatsApp"*, *"Open Maps"*, *"Open Browser"*, *"Open Spotify"*).
   - ⚙️ **System Settings Shortcuts**: Direct navigation to Android settings panels without searching (*"Open Wi-Fi settings"*, *"Open Bluetooth"*, *"Open Display settings"*, *"Volume settings"*).
 - **Offline Document Chat (Local RAG)**: Attach local `.pdf`, `.txt`, and `.md` files directly into chat via the paperclip button. The app extracts text using pure Dart `syncfusion_flutter_pdf`, chunks text semantically with overlap, and performs instant in-memory BM25 relevance retrieval to ground LLM answers with zero network calls and zero cloud leaks.
+- **Inference Parameters & Hardware Tuning**: Fine-tune CPU generation threads (1, 2, 4, 6, 8), sampling temperature (0.0 to 1.0 with Strict/Balanced/Creative badge), context window size (1024, 2048, 4096 tokens), and max generation tokens (128, 256, 512, 1024) directly from Settings. Parameter modifications are persisted to disk (`inference_config.json`), dynamically re-applied to active models without app restart, and support a one-tap "Reset Defaults" action.
 - **Conversation Search & Chat Export**: Instant keyword search across chat titles and message contents in the history drawer with message snippet previews. Export conversations as Markdown (`.md`) files, copy formatted transcripts to clipboard, or share conversations directly through the native system share sheet.
 - **Multi-Model Manager & Storage Control**: Select, hot-swap, and delete models on-device (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B). Inactive models stay on disk for instant offline switching, with one-tap deletion from Settings to reclaim phone storage. Model catalog is decoupled into `assets/models/model_catalog.json` as the single source of truth.
 - **Zero-Cloud Privacy & Security**: 100% on-device CPU inference (no prompt or conversation data leaves your phone), enforced on-device speech recognition (`onDevice: true`), sandboxed local SQLite database with `android:allowBackup="false"` (no automated cloud or ADB extraction), zero telemetry or tracking SDKs, and a one-tap permanent "Wipe All Chat History" in Settings.
@@ -89,7 +90,7 @@ and [architecture guide](docs/architecture.md).
 
 ## Future Roadmap
 
-Pocket AI is actively evolving towards a full-featured offline assistant:
+Arivu AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Device Tools & Central Registry**: Flashlight / torch controls, battery diagnostics, scheduled reminders, and native alarms & timers routed through `ToolRegistry`.
 - [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
 - [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.
@@ -100,6 +101,7 @@ Pocket AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Document Chat (Local RAG)**: Private on-device Q&A for local PDFs, Markdown, and notes via pure Dart BM25 retrieval.
 - [x] **Markdown & Code Highlighting**: Rich formatting, syntax highlighting, language badges, and one-tap copy button in chat.
 - [x] **Conversation Search & Chat Export**: Search past chat titles and messages with snippet previews; export conversations as Markdown (`.md`) or share via system share sheet.
+- [x] **Inference Parameters & Hardware Tuning**: Fine-tune CPU generation threads, sampling temperature slider, context window size, and max generation token limits directly in Settings with live dynamic reload.
 
 ## Model behavior
 
@@ -115,4 +117,4 @@ Contributions are welcome. If you want to improve the app, please open an issue 
 
 ## License
 
-This project is currently unlicensed. If you plan to share or distribute it publicly, consider adding an appropriate license file such as MIT or Apache 2.0.
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for the full license text and additional AI/hardware safety terms.

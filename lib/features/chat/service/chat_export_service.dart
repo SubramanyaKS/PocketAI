@@ -22,14 +22,14 @@ class ChatExportService {
 
     buffer.writeln('# $title');
     buffer.writeln();
-    buffer.writeln('> *Exported from Pocket AI on $timestamp*');
+    buffer.writeln('> *Exported from Arivu AI on $timestamp*');
     buffer.writeln();
     buffer.writeln('---');
     buffer.writeln();
 
     for (final message in messages) {
       final isUser = message.role == 'user';
-      final header = isUser ? '### 👤 User' : '### 🤖 Pocket AI';
+      final header = isUser ? '### 👤 User' : '### 🤖 Arivu AI';
 
       buffer.writeln(header);
       buffer.writeln();
@@ -70,7 +70,7 @@ class ChatExportService {
         .trim()
         .replaceAll(RegExp(r'\s+'), '_')
         .toLowerCase();
-    final fileName = 'pocket_ai_${sanitizedTitle.isEmpty ? "chat" : sanitizedTitle}_${DateTime.now().millisecondsSinceEpoch}.md';
+    final fileName = 'arivu_ai_${sanitizedTitle.isEmpty ? "chat" : sanitizedTitle}_${DateTime.now().millisecondsSinceEpoch}.md';
     final file = File('${targetDir.path}/$fileName');
     await file.writeAsString(markdown);
     return file;
