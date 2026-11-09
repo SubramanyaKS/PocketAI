@@ -59,8 +59,8 @@ The app boots with an on-device language model (supporting SmolLM2-360M, SmolLM2
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/SubramanyaKS/PocketAI.git
-cd PocketAI
+git clone https://github.com/SubramanyaKS/ArivuAI.git
+cd ArivuAI
 ```
 
 ### 2. Install dependencies
