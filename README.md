@@ -115,4 +115,4 @@ Contributions are welcome. If you want to improve the app, please open an issue 
 
 ## License
 
-This project is currently unlicensed. If you plan to share or distribute it publicly, consider adding an appropriate license file such as MIT or Apache 2.0.
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for the full license text and additional AI/hardware safety terms.
