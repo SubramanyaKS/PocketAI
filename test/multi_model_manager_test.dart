@@ -44,7 +44,7 @@ void main() {
 
   group('ModelCatalog & ModelSpec Tests', () {
     test('ModelCatalog contains all verified mobile models', () {
-      expect(ModelCatalog.allModels.length, 4);
+      expect(ModelCatalog.allModels.length, 5);
       expect(ModelCatalog.defaultModel.id, 'qwen3-0.6b-q8_0');
 
       final ids = ModelCatalog.allModels.map((m) => m.id).toList();
@@ -52,6 +52,7 @@ void main() {
       expect(ids, contains('smollm2-360m'));
       expect(ids, contains('qwen2.5-0.5b'));
       expect(ids, contains('qwen2.5-1.5b-q4'));
+      expect(ids, contains('smollm2-1.7b-q4'));
     });
 
     test('ModelSpec sizeFormatted produces clean human-readable units', () {

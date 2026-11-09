@@ -42,5 +42,16 @@
     "sizeBytes": 1030000000,
     "sha256": null,
     "recommendedRam": "4GB+ RAM"
+  },
+  {
+    "id": "smollm2-1.7b-q4",
+    "name": "SmolLM2 1.7B Instruct",
+    "description": "Powerful 4-bit edge model by Hugging Face with balanced reasoning, comprehension, and low memory footprint.",
+    "category": "Edge Intelligence (4-bit)",
+    "fileName": "smollm2-1.7b-instruct-q4_k_m.gguf",
+    "downloadUrl": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/resolve/main/smollm2-1.7b-instruct-q4_k_m.gguf",
+    "sizeBytes": 1055609536,
+    "sha256": null,
+    "recommendedRam": "3GB+ RAM"
   }
 ]
