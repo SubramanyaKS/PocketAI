@@ -14,6 +14,8 @@ import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:pocket_ai/features/chat/widgets/markdown_code_builder.dart';
+import 'package:pocket_ai/features/document/models/attached_document.dart';
+import 'package:pocket_ai/features/document/service/document_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.aiService});
@@ -32,6 +34,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, dynamic>> _conversations = [];
   final FlutterTts _flutterTts = FlutterTts();
   int? _currentConversationId;
+  AttachedDocument? _attachedDocument;
+  bool _isExtractingDocument = false;
 
   final bool _modelReady = true;
   bool _isThinking = false;
@@ -210,7 +214,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _pickDocument() async {
+    if (_isThinking || _isExtractingDocument) return;
 
+    setState(() => _isExtractingDocument = true);
+    try {
+      final doc = await DocumentService.instance.pickDocument();
+      if (doc != null && mounted) {
+        setState(() {
+          _attachedDocument = doc;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Attached ${doc.name} (${doc.sizeFormatted}, ${doc.chunks.length} chunks)',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceAll('Exception: ', '').replaceAll('StateError: ', ''),
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExtractingDocument = false);
+      }
+    }
+  }
 
   Future<void> _sendMessage() async {
     final prompt = _controller.text.trim();
@@ -218,6 +269,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (prompt.isEmpty || !_modelReady || !_isHistoryReady || _isThinking) {
       return;
     }
+
+    final docToUse = _attachedDocument;
+    final savedPrompt = docToUse != null ? '📄 ${docToUse.name}\n\n$prompt' : prompt;
 
     setState(() {
       _isThinking = true;
@@ -237,7 +291,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       userMessage = ChatMessage(
         conversationId: conversationId,
         role: 'user',
-        content: prompt,
+        content: savedPrompt,
         createdAt: createdAt,
       );
 
@@ -309,8 +363,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final responseBuffer = StringBuffer();
     final contextMessages = ChatUtils.buildContextMessages(messages: _messages, prompt: prompt, currentMessage: userMessage);
 
+    // Build context with RAG document injection if a document is attached
+    String? ragSystemPrompt;
+    if (docToUse != null) {
+      final relevantChunks = DocumentService.instance.retrieveRelevantChunks(
+        prompt,
+        docToUse.chunks,
+        maxChunks: 3,
+      );
+      ragSystemPrompt = DocumentService.instance.buildRagSystemPrompt(
+        document: docToUse,
+        relevantChunks: relevantChunks,
+      );
+    }
+
     try {
-      await for (final chunk in widget.aiService.askStream(contextMessages)) {
+      await for (final chunk in widget.aiService.askStream(
+        contextMessages,
+        systemPrompt: ragSystemPrompt,
+      )) {
         responseBuffer.write(chunk);
 
         if (responseBuffer.toString().trim().isEmpty) continue;
@@ -916,7 +987,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
             // Message input area
             Container(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : Colors.white,
                 border: Border(
@@ -927,87 +998,179 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Container(
+                  // Active Attached Document Chip
+                  if (_attachedDocument != null) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isDark
                             ? const Color(0xFF1E293B)
-                            : const Color(0xFFF3F5FA),
-                        borderRadius: BorderRadius.circular(26),
+                            : const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : const Color(0xFFE6E8EF),
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.35),
                         ),
                       ),
-                      child: TextField(
-                        controller: _controller,
-                        minLines: 1,
-                        maxLines: 5,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF1E293B),
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Message Pocket AI...',
-                          hintStyle: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF64748B)
-                                : const Color(0xFF9299A8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _attachedDocument!.extension == 'pdf'
+                                ? Icons.picture_as_pdf_rounded
+                                : Icons.description_rounded,
+                            size: 22,
+                            color: const Color(0xFF6366F1),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          border: InputBorder.none,
-                          suffixIcon: IconButton(
-                            tooltip: 'Voice input',
-                            icon: Icon(
-                              isListen ? Icons.mic : Icons.mic_none_rounded,
-                              color: isListen
-                                  ? const Color(0xFFEF4444)
-                                  : (isDark
-                                      ? const Color(0xFF94A3B8)
-                                      : Colors.grey),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _attachedDocument!.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${_attachedDocument!.sizeFormatted} • ${_attachedDocument!.chunks.length} chunks indexed for RAG',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
                             ),
-                            onPressed: _listen,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Remove document',
+                            onPressed: () => setState(() => _attachedDocument = null),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Paperclip Attachment Button
+                      Container(
+                        height: 48,
+                        margin: const EdgeInsets.only(right: 6),
+                        child: IconButton(
+                          tooltip: 'Attach local document (PDF, TXT, MD)',
+                          icon: _isExtractingDocument
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  Icons.attach_file_rounded,
+                                  color: _attachedDocument != null
+                                      ? const Color(0xFF6366F1)
+                                      : (isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B)),
+                                ),
+                          onPressed: _isThinking ? null : _pickDocument,
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF3F5FA),
+                            borderRadius: BorderRadius.circular(26),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : const Color(0xFFE6E8EF),
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _controller,
+                            minLines: 1,
+                            maxLines: 5,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                            ),
+                            decoration: InputDecoration(
+                              hintText: _attachedDocument != null
+                                  ? 'Ask about ${_attachedDocument!.name}...'
+                                  : 'Message Pocket AI...',
+                              hintStyle: TextStyle(
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF9299A8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
+                              border: InputBorder.none,
+                              suffixIcon: IconButton(
+                                tooltip: 'Voice input',
+                                icon: Icon(
+                                  isListen ? Icons.mic : Icons.mic_none_rounded,
+                                  color: isListen
+                                      ? const Color(0xFFEF4444)
+                                      : (isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : Colors.grey),
+                                ),
+                                onPressed: _listen,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
                           ),
                         ),
-                        onSubmitted: (_) => _sendMessage(),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: IconButton(
-                      tooltip: 'Send message',
-                      icon: Icon(
-                        _isThinking
-                            ? Icons.hourglass_top_rounded
-                            : Icons.arrow_upward_rounded,
-                        color: Colors.white,
+                        child: IconButton(
+                          tooltip: 'Send message',
+                          icon: Icon(
+                            _isThinking
+                                ? Icons.hourglass_top_rounded
+                                : Icons.arrow_upward_rounded,
+                            color: Colors.white,
+                          ),
+                          onPressed:
+                              (_modelReady && _isHistoryReady && !_isThinking)
+                                  ? _sendMessage
+                                  : null,
+                        ),
                       ),
-                      onPressed:
-                          (_modelReady && _isHistoryReady && !_isThinking)
-                              ? _sendMessage
-                              : null,
-                    ),
+                    ],
                   ),
                 ],
               ),
