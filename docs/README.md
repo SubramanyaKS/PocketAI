@@ -58,7 +58,8 @@ lib/
 │   ├── model/
 │   │   ├── models/
 │   │   │   ├── model_spec.dart         # Model entity (id, size, url, RAM reqs)
-│   │   │   └── model_catalog.dart      # Curated catalog (SmolLM2, Qwen2.5, Qwen3)
+│   │   │   ├── model_catalog.dart      # Curated catalog (SmolLM2, Qwen2.5, Qwen3)
+│   │   │   └── inference_config.dart   # Inference parameters (threads, context, temp, maxTokens)
 │   │   └── presentation/
 │   │       └── model_setup_screen.dart # Download progress & model preparation screen
 │   │

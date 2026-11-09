@@ -384,4 +384,35 @@ flowchart TD
 4. **Pure Dart BM25 Retrieval**: Fast (<2ms) in-memory ranking with English stopword filtering and term-frequency scoring over candidate chunks, eliminating heavy ONNX runtime or cloud vector database dependencies.
 5. **Strict Grounding & Anti-Hallucination Prompting**: Retrieved excerpts are formatted into a constrained system prompt instructing the local LLM to answer strictly from the excerpts and state clearly if information is absent.
 
+---
+
+## 9. Inference Parameters & Hardware Tuning Architecture
+
+Pocket AI allows users to fine-tune CPU generation and sampling parameters directly on-device to balance throughput, battery consumption, and creativity:
+
+```mermaid
+flowchart TD
+    UI["SettingsScreen (Inference Parameters Card)"]
+    Service["LocalAiService"]
+    Model["InferenceConfig Model"]
+    Disk[("inference_config.json (AppSupportDirectory)")]
+    Engine["LlamaEngine (llama.cpp)"]
+
+    UI -->|User Selects Threads / Context / Temp / Tokens| Service
+    Service -->|Update State & Notify Listeners| Model
+    Service -->|Atomic Disk Persistence| Disk
+    Service -->|Dynamic ModelParams Re-initialization| Engine
+    Service -->|GenerationParams Temp / MaxTokens| Engine
+```
+
+### Configurable Parameters:
+1. **CPU Generation Threads**: Selectable between 1, 2, 4, 6, and 8 threads. Dynamic reload updates `ModelParams(numberOfThreads: ...)` on the active engine without app restart. Lower threads conserve battery; higher threads maximize tokens/second on multi-core processors.
+2. **Sampling Temperature**: Continuous slider from `0.0` to `1.0` with dynamic semantic labeling:
+   - `0.0 - 0.2`: **Strict** (deterministic, factual, code & math)
+   - `0.3 - 0.5`: **Balanced** (general conversations & assistance)
+   - `0.6 - 1.0`: **Creative** (storytelling, brainstorming, creative writing)
+3. **Context Window Size**: Discrete chips for `1024` (Eco / Low RAM), `2048` (Default), and `4096` (Deep / Long Documents). Re-allocates the KV-cache in `LlamaEngine` cleanly on change.
+4. **Max Generation Tokens**: Discrete chips for `128`, `256`, `512`, and `1024` tokens per response turn, bounding generation latency.
+5. **Reset Defaults Action**: Single tap restores standard configurations (`threads: 4`, `temp: 0.3`, `context: 2048`, `maxTokens: 256`) and persists immediately to disk.
+
 
