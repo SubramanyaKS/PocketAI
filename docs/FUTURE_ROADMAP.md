@@ -1,6 +1,6 @@
-﻿# Pocket AI — Future Roadmap & Architecture Plan
+﻿# Arivu AI — Future Roadmap & Architecture Plan
 
-Here is the updated roadmap and milestone status for taking **Pocket AI** from a prototype to a full-featured, high-performance offline AI assistant.
+Here is the updated roadmap and milestone status for taking **Arivu AI** from a prototype to a full-featured, high-performance offline AI assistant.
 
 ---
 

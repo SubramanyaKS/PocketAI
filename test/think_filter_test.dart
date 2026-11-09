@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/chat/service/think_filter.dart';
+import 'package:arivu_ai/features/chat/service/think_filter.dart';
 
 void main() {
   group('ThinkFilter', () {

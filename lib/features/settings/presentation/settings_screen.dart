@@ -2,11 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pocket_ai/features/chat/service/chat_database.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/model/models/inference_config.dart';
-import 'package:pocket_ai/features/settings/presentation/manage_models_screen.dart';
-import 'package:pocket_ai/provider/theme_provider.dart';
+import 'package:arivu_ai/features/chat/service/chat_database.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/model/models/inference_config.dart';
+import 'package:arivu_ai/features/settings/presentation/manage_models_screen.dart';
+import 'package:arivu_ai/provider/theme_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final LocalAiService? aiService;
@@ -763,9 +763,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 32),
 
-          // ABOUT POCKET AI SECTION
+          // ABOUT ARIVU AI SECTION
           Text(
-            'ABOUT POCKET AI',
+            'ABOUT ARIVU AI',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,

@@ -4,9 +4,9 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
-import 'package:pocket_ai/utils/constant.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/settings/presentation/settings_screen.dart';
+import 'package:arivu_ai/utils/constant.dart';
 
 void main() {
   group('Security & Supply Chain Integrity Tests', () {

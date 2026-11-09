@@ -186,7 +186,7 @@
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright 2026 Subramanya K S (SubramanyaKS) and Pocket AI Contributors
+   Copyright 2026 Subramanya K S (SubramanyaKS) and Arivu AI Contributors
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@
    limitations under the License.
 
 ================================================================================
-ADDITIONAL TERMS & DISCLAIMERS FOR POCKET AI
+ADDITIONAL TERMS & DISCLAIMERS FOR ARIVU AI
 ================================================================================
 
 1. AI Output & Hallucination Disclaimer:
@@ -213,20 +213,20 @@ ADDITIONAL TERMS & DISCLAIMERS FOR POCKET AI
    financial, architectural, or safety advice.
 
 2. Hardware & Device Automation Actions:
-   Pocket AI executes native Android system commands (such as setting/stopping
+   Arivu AI executes native Android system commands (such as setting/stopping
    clock alarms, countdown timers, scheduled reminders, flashlight/torch toggles,
    settings panels, and application launchers). The authors and contributors shall
    not be held liable for missed alarms, failed notifications, unexpected battery
    drain, hardware wear, or unintended actions triggered by conversational inputs.
 
 3. Third-Party Model Weights:
-   This Apache 2.0 license covers the source code and architecture of Pocket AI.
+   This Apache 2.0 license covers the source code and architecture of Arivu AI.
    Downloadable language model weights (GGUF binary files authored by Alibaba,
    Hugging Face, or other independent creators) are governed by their respective
    creators' licenses (e.g., Apache 2.0) and are fetched directly by the user
    from public upstream repositories.
 
 4. Offline Operation & Data Security:
-   Pocket AI is engineered to operate 100% locally on-device without remote
+   Arivu AI is engineered to operate 100% locally on-device without remote
    telemetry or cloud data harvesting. However, users remain solely responsible
    for the physical security of their hardware, local backups, and device access.

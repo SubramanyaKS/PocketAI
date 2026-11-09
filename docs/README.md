@@ -1,6 +1,6 @@
-# Pocket AI Developer Documentation
+# Arivu AI Developer Documentation
 
-Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first mobile AI assistant built with Flutter and embedded `llama.cpp` (`llamadart`).
+Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mobile AI assistant built with Flutter and embedded `llama.cpp` (`llamadart`).
 
 ---
 

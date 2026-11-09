@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/model/models/inference_config.dart';
-import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/model/models/inference_config.dart';
+import 'package:arivu_ai/features/settings/presentation/settings_screen.dart';
 
 class MockPathProviderPlatform extends Fake
     with MockPlatformInterfaceMixin
@@ -26,7 +26,7 @@ void main() {
   late Directory tempDir;
 
   setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('pocket_ai_test_inf');
+    tempDir = Directory.systemTemp.createTempSync('arivu_ai_test_inf');
     PathProviderPlatform.instance = MockPathProviderPlatform(tempDir.path);
   });
 

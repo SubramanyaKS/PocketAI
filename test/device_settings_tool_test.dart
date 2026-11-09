@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/tools/device_settings_tool.dart';
-import 'package:pocket_ai/tools/tool_registry.dart';
+import 'package:arivu_ai/tools/device_settings_tool.dart';
+import 'package:arivu_ai/tools/tool_registry.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

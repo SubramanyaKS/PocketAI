@@ -74,7 +74,7 @@ class NotificationService {
     final reminderId = id ?? (DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF);
 
     const androidDetails = AndroidNotificationDetails(
-      'pocket_ai_reminders',
+      'arivu_ai_reminders',
       'Reminders',
       channelDescription: 'Offline personal reminders and alerts',
       importance: Importance.max,
@@ -88,7 +88,7 @@ class NotificationService {
       // Use exact alarmClock schedule (rings even in Android background/Doze mode)
       await _notifications.zonedSchedule(
         id: reminderId,
-        title: 'Pocket AI Reminder',
+        title: 'Arivu AI Reminder',
         body: title,
         scheduledDate: scheduledDate,
         notificationDetails: const NotificationDetails(android: androidDetails),
@@ -99,7 +99,7 @@ class NotificationService {
       try {
         await _notifications.zonedSchedule(
           id: reminderId,
-          title: 'Pocket AI Reminder',
+          title: 'Arivu AI Reminder',
           body: title,
           scheduledDate: scheduledDate,
           notificationDetails: const NotificationDetails(android: androidDetails),
@@ -109,7 +109,7 @@ class NotificationService {
         log('Fallback to inexactAllowWhileIdle: $e2');
         await _notifications.zonedSchedule(
           id: reminderId,
-          title: 'Pocket AI Reminder',
+          title: 'Arivu AI Reminder',
           body: title,
           scheduledDate: scheduledDate,
           notificationDetails: const NotificationDetails(android: androidDetails),
@@ -137,7 +137,7 @@ class NotificationService {
   }) async {
     await initialize();
     const androidDetails = AndroidNotificationDetails(
-      'pocket_ai_reminders',
+      'arivu_ai_reminders',
       'Reminders',
       channelDescription: 'Offline personal reminders',
       importance: Importance.max,

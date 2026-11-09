@@ -118,7 +118,7 @@ class AlarmTimerTool implements PocketTool {
       if (seconds > 0) {
         return await setNativeTimer(
           seconds: seconds,
-          message: 'Pocket AI Timer',
+          message: 'Arivu AI Timer',
         );
       }
     }
@@ -157,7 +157,7 @@ class AlarmTimerTool implements PocketTool {
       return await setNativeAlarm(
         hour: hour,
         minute: minute,
-        message: 'Pocket AI Alarm',
+        message: 'Arivu AI Alarm',
         formattedTime: displayTime,
       );
     }
@@ -238,7 +238,7 @@ class AlarmTimerTool implements PocketTool {
   static Future<String> setNativeAlarm({
     required int hour,
     required int minute,
-    String message = 'Pocket AI Alarm',
+    String message = 'Arivu AI Alarm',
     String? formattedTime,
   }) async {
     final display = formattedTime ??
@@ -269,7 +269,7 @@ class AlarmTimerTool implements PocketTool {
   /// Triggers Android native AlarmClock.ACTION_SET_TIMER intent
   static Future<String> setNativeTimer({
     required int seconds,
-    String message = 'Pocket AI Timer',
+    String message = 'Arivu AI Timer',
   }) async {
     final minutes = seconds ~/ 60;
     final remainingSecs = seconds % 60;

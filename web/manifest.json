@@ -1,11 +1,11 @@
 {
-    "name": "pocket_ai",
-    "short_name": "pocket_ai",
+    "name": "Arivu AI",
+    "short_name": "Arivu AI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hexcode",
     "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "description": "Arivu AI - Privacy-first on-device local AI chat & voice assistant running GGUF models on Android.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

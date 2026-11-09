@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/model/presentation/model_setup_screen.dart';
+import 'package:arivu_ai/features/model/presentation/model_setup_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -24,7 +24,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Pocket AI',
+                  'Arivu AI',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 30,

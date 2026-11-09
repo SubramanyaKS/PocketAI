@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/home/presentation/home_screen.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/home/presentation/home_screen.dart';
 
 class ModelSetupScreen extends StatefulWidget {
   const ModelSetupScreen({super.key});
@@ -130,7 +130,7 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'Prepare Pocket AI',
+                        'Prepare Arivu AI',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,

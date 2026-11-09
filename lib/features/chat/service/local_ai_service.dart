@@ -6,12 +6,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:llamadart/llamadart.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pocket_ai/features/chat/models/chat_message.dart';
-import 'package:pocket_ai/features/chat/models/performance_metrics.dart';
-import 'package:pocket_ai/features/chat/service/think_filter.dart';
-import 'package:pocket_ai/features/model/models/inference_config.dart';
-import 'package:pocket_ai/features/model/models/model_catalog.dart';
-import 'package:pocket_ai/features/model/models/model_spec.dart';
+import 'package:arivu_ai/features/chat/models/chat_message.dart';
+import 'package:arivu_ai/features/chat/models/performance_metrics.dart';
+import 'package:arivu_ai/features/chat/service/think_filter.dart';
+import 'package:arivu_ai/features/model/models/inference_config.dart';
+import 'package:arivu_ai/features/model/models/model_catalog.dart';
+import 'package:arivu_ai/features/model/models/model_spec.dart';
 
 class LocalAiService extends ChangeNotifier {
   static LocalAiService? _currentInstance;
@@ -416,7 +416,7 @@ class LocalAiService extends ChangeNotifier {
   }
 
   static const String defaultChatSystemPrompt = '''
-You are Pocket AI, an intelligent, privacy-focused offline AI assistant running locally on the user's mobile device.
+You are Arivu AI, an intelligent, privacy-focused offline AI assistant running locally on the user's mobile device.
 
 Strict Operating Rules:
 1. Relevance & Precision: Answer ONLY what the user explicitly asks. Do not provide unrequested background trivia or off-topic information.
@@ -426,7 +426,7 @@ Strict Operating Rules:
 ''';
 
   static const String defaultVoiceSystemPrompt = '''
-You are Pocket Voice, an on-device voice assistant speaking directly through text-to-speech.
+You are Arivu Voice, an on-device voice assistant speaking directly through text-to-speech.
 
 Strict Operating Rules:
 1. Instant Direct Answer: Deliver your answer in 1 or 2 concise, natural, spoken English sentences. Never repeat or summarize the user's question.

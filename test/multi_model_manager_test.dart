@@ -3,11 +3,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/model/models/model_catalog.dart';
-import 'package:pocket_ai/features/model/models/model_spec.dart';
-import 'package:pocket_ai/features/settings/presentation/manage_models_screen.dart';
-import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/model/models/model_catalog.dart';
+import 'package:arivu_ai/features/model/models/model_spec.dart';
+import 'package:arivu_ai/features/settings/presentation/manage_models_screen.dart';
+import 'package:arivu_ai/features/settings/presentation/settings_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -28,7 +28,7 @@ void main() {
   late Directory tempDir;
 
   setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('pocket_ai_test_models');
+    tempDir = Directory.systemTemp.createTempSync('arivu_ai_test_models');
     PathProviderPlatform.instance = MockPathProviderPlatform(tempDir.path);
     final catalogFile = File('assets/models/model_catalog.json');
     if (catalogFile.existsSync()) {

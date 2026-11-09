@@ -1,4 +1,4 @@
-# Pocket AI
+# Arivu AI (ಅರಿವು AI)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.38%2B-02569B?logo=flutter" alt="Flutter" />
@@ -7,11 +7,11 @@
   <img src="https://img.shields.io/badge/Local-AI-6C63FF" alt="Local AI" />
 </p>
 
-Pocket AI is a Flutter-based local AI chat app that downloads a GGUF language model on first use and runs inference directly on the device. It keeps the model in the app support directory so it can be reused later without downloading it again.
+Arivu AI (from the Kannada word *ಅರಿವು*, meaning awareness, insight, and consciousness) is a Flutter-based local AI assistant that runs quantized GGUF language models directly on mobile CPU with zero cloud dependencies and 100% offline privacy.
 
 ## Overview
 
-The app uses the Qwen3 0.6B Q8_0 model from Hugging Face and loads it with `llamadart` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, and displays download progress. Once the model is loaded, the app opens chat and reuses the same loaded service.
+The app boots with an on-device language model (supporting SmolLM2-360M, SmolLM2-1.7B, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) loaded via `llamadart` / llama.cpp. On launch, a model setup screen checks for a valid cached model, downloads it if needed, validates supply-chain cryptographic digests, and displays download progress. Once loaded, prompts and voice interactions are evaluated entirely on-device.
 
 ## Features
 
@@ -90,7 +90,7 @@ and [architecture guide](docs/architecture.md).
 
 ## Future Roadmap
 
-Pocket AI is actively evolving towards a full-featured offline assistant:
+Arivu AI is actively evolving towards a full-featured offline assistant:
 - [x] **Offline Device Tools & Central Registry**: Flashlight / torch controls, battery diagnostics, scheduled reminders, and native alarms & timers routed through `ToolRegistry`.
 - [x] **Offline Alarms & Timers**: Trigger system clock alarms and countdown timers via native Android intents directly from voice or chat commands.
 - [x] **Low-Latency Streaming TTS**: Sentence-by-sentence audio playback for instant voice replies.

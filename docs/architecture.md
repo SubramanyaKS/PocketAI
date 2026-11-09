@@ -1,6 +1,6 @@
-# Pocket AI — System Architecture & Technical Specifications
+# Arivu AI — System Architecture & Technical Specifications
 
-Pocket AI is architected as an offline-first, on-device mobile AI assistant. It integrates native embedded `llama.cpp` machine learning inference via `llamadart`, device-native hardware control, local SQLite data persistence, and an interactive voice pipeline.
+Arivu AI is architected as an offline-first, on-device mobile AI assistant. It integrates native embedded `llama.cpp` machine learning inference via `llamadart`, device-native hardware control, local SQLite data persistence, and an interactive voice pipeline.
 
 ---
 
@@ -9,7 +9,7 @@ Pocket AI is architected as an offline-first, on-device mobile AI assistant. It 
 ```mermaid
 flowchart TD
     subgraph UI_Layer ["Presentation & UI Layer"]
-        App["PocketAiApp<br/>(Theme & Navigation Root)"]
+        App["ArivuAiApp<br/>(Theme & Navigation Root)"]
         SetupScreen["ModelSetupScreen<br/>(Download & Initialization UI)"]
         HomeScreen["HomeScreen<br/>(Tab Shell Navigation)"]
         ChatScreen["ChatScreen<br/>(MarkdownBody, CodeBlockWidget & Prompts)"]
@@ -113,7 +113,7 @@ flowchart TD
 
 ## 2. Model Preparation & Initialization Flow
 
-When Pocket AI launches, it ensures valid weights are present locally before presenting chat or voice interfaces.
+When Arivu AI launches, it ensures valid weights are present locally before presenting chat or voice interfaces.
 
 ```mermaid
 sequenceDiagram
@@ -260,7 +260,7 @@ sequenceDiagram
 
 ## 5. Local Data Storage & Schema Design
 
-Pocket AI persists all user conversations, messages, and scheduled tasks in a local SQLite database (`chat_history.db`).
+Arivu AI persists all user conversations, messages, and scheduled tasks in a local SQLite database (`chat_history.db`).
 
 ```mermaid
 erDiagram
@@ -311,7 +311,7 @@ erDiagram
 
 ## 7. Zero-Cloud Privacy & Data Security Architecture
 
-Pocket AI enforces an uncompromising zero-cloud privacy architecture across all layers of the stack:
+Arivu AI enforces an uncompromising zero-cloud privacy architecture across all layers of the stack:
 
 ```mermaid
 flowchart TD
@@ -348,7 +348,7 @@ flowchart TD
 
 ## 8. Offline Document Chat & Local RAG Architecture
 
-Pocket AI features a 100% on-device Retrieval-Augmented Generation (RAG) pipeline for document question answering without external vector databases, Python servers, or cloud embedding APIs:
+Arivu AI features a 100% on-device Retrieval-Augmented Generation (RAG) pipeline for document question answering without external vector databases, Python servers, or cloud embedding APIs:
 
 ```mermaid
 flowchart TD
@@ -388,7 +388,7 @@ flowchart TD
 
 ## 9. Inference Parameters & Hardware Tuning Architecture
 
-Pocket AI allows users to fine-tune CPU generation and sampling parameters directly on-device to balance throughput, battery consumption, and creativity:
+Arivu AI allows users to fine-tune CPU generation and sampling parameters directly on-device to balance throughput, battery consumption, and creativity:
 
 ```mermaid
 flowchart TD

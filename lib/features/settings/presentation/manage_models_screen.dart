@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pocket_ai/features/chat/service/local_ai_service.dart';
-import 'package:pocket_ai/features/model/models/model_catalog.dart';
-import 'package:pocket_ai/features/model/models/model_spec.dart';
+import 'package:arivu_ai/features/chat/service/local_ai_service.dart';
+import 'package:arivu_ai/features/model/models/model_catalog.dart';
+import 'package:arivu_ai/features/model/models/model_spec.dart';
 
 /// Screen allowing users to browse, download, hot-swap, and delete on-device AI models.
 class ManageModelsScreen extends StatefulWidget {
