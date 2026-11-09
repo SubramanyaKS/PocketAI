@@ -39,25 +39,32 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 - [x] **One-Tap Permanent Data Wipe**: "Wipe All Chat History" in Settings permanently erases the SQLite database with confirmation guard.
 - [x] **Zero Telemetry**: No tracking SDKs, no analytics, no ad networks.
 
+### 6. Offline Document Chat (Local RAG)
+- [x] **Local Document Ingestion**: Attach local `.pdf`, `.txt`, and `.md` files via `file_picker` directly in chat.
+- [x] **Pure Dart PDF Parsing**: Instant on-device text extraction via `syncfusion_flutter_pdf` with zero cloud or native OS PDF dependencies.
+- [x] **Semantic Chunking & Overlap**: Splits documents into ~600-character chunks with 80-character boundary overlap respecting paragraph and sentence boundaries.
+- [x] **In-Memory BM25 Relevance Search**: Pure Dart keyword matching with English stopword filtering evaluates chunk rankings in <2ms.
+- [x] **Strict Context Grounding**: Injects top retrieved excerpts with anti-hallucination guardrails into the LLM system prompt (`buildRagSystemPrompt`).
+- [x] **Interactive Document Chip**: Shows document name, formatted size, chunk count, and one-tap detachment button above the chat input box.
+
+### 7. Conversation Search & Export
+- [x] **Full-Text Conversation Search**: Search past chat sessions by keyword in the history drawer with live query filtering and matching message snippet previews.
+- [x] **Markdown Export & Sharing**: Generate formatted Markdown (`.md`) transcripts with headers and roles (`ChatExportService`).
+- [x] **Native Share Sheet Integration**: Share transcripts directly to other Android apps (Email, WhatsApp, Notes, Drive) via `share_plus`.
+- [x] **One-Tap Clipboard Copy**: Copy formatted conversation directly to clipboard with instant feedback.
+- [x] **File Generator**: Save and share sanitized `.md` transcript files directly from the app bar.
+
 ---
 
 ## Upcoming Phases & Planned Features
 
-### Phase 5: Offline Document Chat (Local RAG)
-Enable users to query their private documents completely offline without uploading to any cloud:
-1. **Local Document Ingestion**: Pick PDF, TXT, EPUB, or Markdown files via `file_picker`.
-2. **Text Chunking**: Split text into semantic paragraphs (200-500 words).
-3. **Local Embedding & Vector Search**: Lightweight local embeddings (`all-MiniLM-L6-v2` via ONNX or SQLite cosine similarity).
-4. **Context Injection**: Retrieve relevant chunks and inject them into the system prompt for grounded, private answers.
-
-### Phase 6: Hardware Acceleration & Performance Tuning
+### Phase 8: Hardware Acceleration & Performance Tuning
 - **Inference Performance Controls in Settings**: User-configurable CPU generation threads (`2`, `4`, `6`, `8`) and context window size (`1K`, `2K`, `4K`).
 - **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via `llama.cpp` compilation flags for 2x-4x tokens/second.
 - **Background Keep-Alive**: Lifecycle management so switching apps during long generations doesn't abort inference.
 
-### Phase 7: Conversation Management
-- **Conversation Search**: Search past chat sessions by keyword in the history drawer.
-- **Export & Share**: One-tap export of conversation transcripts as Markdown (`.md`) or plain text.
+### Phase 9: Multi-Document Collections & Advanced RAG
+- **Knowledge Base Collections**: Multi-document indexing and persistent local vector search.
 
 ---
 
@@ -70,6 +77,7 @@ Enable users to query their private documents completely offline without uploadi
 | **Phase 3** | **Markdown & Code Syntax Highlighting** | Chat Screen | **Completed** |
 | **Phase 4** | **Multi-Model Manager & Decoupled JSON Catalog** | Core AI | **Completed** |
 | **Phase 5** | **Live Mic Amplitude Equalizer & Security Enhancements** | Voice & Privacy | **Completed** |
-| **Phase 6** | **Offline Document Chat (Local RAG)** | Local Knowledge | **Next Priority** |
-| **Phase 7** | **Inference Controls & Hardware Acceleration** | Performance | Planned |
+| **Phase 6** | **Offline Document Chat (Local RAG)** | Local Knowledge | **Completed** |
+| **Phase 7** | **Conversation Search & Chat Export** | Productivity | **Completed** |
+| **Phase 8** | **Inference Controls & Hardware Acceleration** | Performance | **Next Priority** |
 | **Phase 8** | **Conversation Search & Export** | Productivity | Planned |

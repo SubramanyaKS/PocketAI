@@ -38,6 +38,8 @@ flowchart TD
         Calculator["CalculatorTool<br/>(Deterministic Offline Math & Percentage Parser)"]
         DevSettings["DeviceSettingsTool<br/>(Wi-Fi, Bluetooth, Display, Sound Panels)"]
         AppLauncher["AppLauncherTool<br/>(Camera, YouTube, Maps, WhatsApp Launchers)"]
+        DocService["DocumentService<br/>(Text Extraction, Chunking & BM25 Retrieval)"]
+        ExportService["ChatExportService<br/>(Markdown Formatter & Share Sheet)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -73,6 +75,8 @@ flowchart TD
 
     ChatScreen -->|Context Window| ChatUtils
     ChatScreen -->|Intercept Intent| Registry
+    ChatScreen -->|Attach & Grounded RAG| DocService
+    ChatScreen -->|Export & Share| ExportService
     ChatScreen -->|Fallback / General Query| AI
 
     VoiceScreen -->|Voice Input| STT
@@ -301,6 +305,7 @@ erDiagram
 | **Deterministic Calculator** | None (Pure Dart Execution) | Evaluates arithmetic, percentages & powers in <1ms; gracefully handles division by zero and delegates non-math to LLM |
 | **System Settings Shortcuts** | None (Standard Android Intents) | Dispatches `android.settings.*` intents (WIFI, BLUETOOTH, DISPLAY, SOUND, BATTERY) |
 | **Application Launcher** | None (Standard Intent Action / Category) | Dispatches launcher intents for Camera, YouTube, Maps, WhatsApp, Chrome, Gallery, Email, Dialer, Messages, Spotify |
+| **Local Document Ingestion & RAG** | None (In-Memory File Bytes) | Pure Dart parsing via `syncfusion_flutter_pdf`, boundary chunking & BM25 retrieval without network access |
 
 ---
 
@@ -338,4 +343,45 @@ flowchart TD
 4. **Permanent One-Tap Data Wipe**: The Settings screen provides an atomic `ChatDatabase.clearAllChatHistory()` action that permanently deletes all stored messages and conversations with confirmation guards.
 5. **Supply Chain Verification**: Model files downloaded from Hugging Face are verified with binary GGUF magic bytes (`0x47, 0x47, 0x55, 0x46`) and SHA-256 cryptographic checksums before memory loading.
 6. **Decoupled Model Catalog**: Model configurations are decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth, loaded asynchronously at application boot.
+
+---
+
+## 8. Offline Document Chat & Local RAG Architecture
+
+Pocket AI features a 100% on-device Retrieval-Augmented Generation (RAG) pipeline for document question answering without external vector databases, Python servers, or cloud embedding APIs:
+
+```mermaid
+flowchart TD
+    DocFile["Local File<br/>(.pdf, .txt, .md)"]
+    Picker["DocumentService.pickDocument()<br/>(file_picker)"]
+    Extractor["Pure Dart Text Extractor<br/>(syncfusion_flutter_pdf / utf8)"]
+    Chunker["Semantic Chunker<br/>(600 chars / 80 char overlap)"]
+    MemoryDoc["AttachedDocument Model<br/>(In-Memory Chunks & Metadata)"]
+    UserQuery["User Chat Prompt"]
+    BM25["BM25 Relevance Scorer<br/>(Dart Term Frequency & Stopwords)"]
+    TopChunks["Top Relevant Excerpts<br/>(Ranked 1 to 3)"]
+    RAGPrompt["Grounded System Prompt<br/>(Strict Anti-Hallucination Rules)"]
+    Llama["llama.cpp Local Inference Engine"]
+    Answer["Streaming Grounded Answer"]
+
+    DocFile --> Picker
+    Picker --> Extractor
+    Extractor --> Chunker
+    Chunker --> MemoryDoc
+    MemoryDoc --> BM25
+    UserQuery --> BM25
+    BM25 --> TopChunks
+    TopChunks --> RAGPrompt
+    RAGPrompt --> Llama
+    UserQuery --> Llama
+    Llama --> Answer
+```
+
+### Key RAG Pipeline Components:
+1. **Zero-Cloud Ingestion**: Files (`.pdf`, `.txt`, `.md`) are read locally into process memory. No document content is uploaded or transmitted over the network.
+2. **Pure Dart PDF Parsing**: Powered by `syncfusion_flutter_pdf`, which runs entirely in Dart without platform method channel overhead or native OS PDF dependencies.
+3. **Paragraph & Sentence Chunking**: Documents are split along natural paragraph (`\n\n`) and sentence boundaries into ~600 character chunks with 80 character overlap to maintain semantic continuity.
+4. **Pure Dart BM25 Retrieval**: Fast (<2ms) in-memory ranking with English stopword filtering and term-frequency scoring over candidate chunks, eliminating heavy ONNX runtime or cloud vector database dependencies.
+5. **Strict Grounding & Anti-Hallucination Prompting**: Retrieved excerpts are formatted into a constrained system prompt instructing the local LLM to answer strictly from the excerpts and state clearly if information is absent.
+
 

@@ -20,8 +20,8 @@ Welcome to the Pocket AI developer documentation. Pocket AI is an offline-first 
    - Build & Run Instructions
 
 3. **[Future Project Roadmap](FUTURE_ROADMAP.md)**
-   - Completed Milestones
-   - Upcoming Engineering Phases (RAG, Streaming Audio Queue, Multi-Model Manager)
+   - Completed Milestones (Voice Assistant, Tool Registry, Multi-Model Manager, Local RAG)
+   - Upcoming Engineering Phases (Hardware Acceleration, Search & Export)
 
 ---
 
@@ -66,19 +66,28 @@ lib/
 │   │   ├── home_screen.dart            # Tab scaffold & bottom navigation bar
 │   │   └── welcome_screen.dart         # Initial onboard welcome widget
 │   │
+│   ├── document/
+│   │   ├── models/
+│   │   │   └── attached_document.dart  # Document metadata, chunks & token estimations
+│   │   └── service/
+│   │       └── document_service.dart   # File picking, PDF/TXT/MD parsing & BM25 retrieval
+│   │
 │   ├── chat/
 │   │   ├── models/
 │   │   │   ├── chat_message.dart       # Message entity (role, content, timestamp)
 │   │   │   └── performance_metrics.dart# Diagnostics (TTFT, tokens/sec, throughput)
 │   │   ├── presentation/
-│   │   │   └── chat_screen.dart        # Chat UI, history drawer & message dispatcher
+│   │   │   └── chat_screen.dart        # Chat UI, document chip, history drawer & dispatcher
 │   │   ├── service/
 │   │   │   ├── chat_database.dart      # SQLite database (conversations, messages, reminders)
+│   │   │   ├── chat_export_service.dart# Markdown formatting, .md file generator & share sheet
 │   │   │   ├── chat_utils.dart         # Context pruning & title truncation utilities
 │   │   │   ├── local_ai_service.dart   # LlamaEngine wrapper, streaming & prompt manager
 │   │   │   └── think_filter.dart       # DeepSeek/Qwen <think> tag stream sanitizer
 │   │   └── widgets/
 │   │       ├── chat_empty_widget.dart  # Empty state with ready-to-test starter prompts
+│   │       ├── code_block_widget.dart  # Syntax-highlighted code block with copy button
+│   │       ├── markdown_code_builder.dart # Custom Markdown code syntax element builder
 │   │       └── prompt_suggestion.dart  # Interactive suggestion chip component
 │   │
 │   ├── assistant/presentation/
@@ -114,6 +123,9 @@ lib/
 | **Integrity & Security** | `crypto` | Streaming SHA-256 model supply-chain verification |
 | **Markdown Rendering** | `flutter_markdown_plus` + `markdown` | Markdown parsing for assistant replies |
 | **Code Syntax Highlighting** | `flutter_highlighter` | Language syntax highlighter & themes |
+| **Document Text Extraction** | `syncfusion_flutter_pdf` | Pure Dart PDF text extraction for local RAG |
+| **Document Picker** | `file_picker` | Native local file selection (.pdf, .txt, .md) |
+| **System Share & Export** | `share_plus` | Platform native share sheet for text and .md files |
 
 ---
 

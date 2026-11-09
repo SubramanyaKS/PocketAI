@@ -130,6 +130,27 @@ class ChatDatabase {
     return db.query('conversations', orderBy: 'updated_at DESC, id DESC');
   }
 
+  /// Searches conversations matching the query string in title or message contents.
+  /// Returns conversations with optional [matching_snippet] when a message matched.
+  Future<List<Map<String, dynamic>>> searchConversations(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return getConversations();
+
+    final db = await database;
+    final pattern = '%$cleanQuery%';
+
+    return db.rawQuery('''
+      SELECT DISTINCT c.id, c.title, c.created_at, c.updated_at,
+             (SELECT m.content FROM messages m 
+              WHERE m.conversation_id = c.id AND m.content LIKE ? 
+              ORDER BY m.created_at DESC LIMIT 1) AS matching_snippet
+      FROM conversations c
+      LEFT JOIN messages m ON m.conversation_id = c.id
+      WHERE c.title LIKE ? OR m.content LIKE ?
+      ORDER BY c.updated_at DESC, c.id DESC
+    ''', [pattern, pattern, pattern]);
+  }
+
   // Delete one conversation and its messages.
   Future<void> deleteConversation(int id) async {
     final db = await database;
