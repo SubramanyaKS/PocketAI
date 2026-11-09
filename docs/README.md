@@ -80,6 +80,7 @@ lib/
 │   │   │   └── chat_screen.dart        # Chat UI, document chip, history drawer & dispatcher
 │   │   ├── service/
 │   │   │   ├── chat_database.dart      # SQLite database (conversations, messages, reminders)
+│   │   │   ├── chat_export_service.dart# Markdown formatting, .md file generator & share sheet
 │   │   │   ├── chat_utils.dart         # Context pruning & title truncation utilities
 │   │   │   ├── local_ai_service.dart   # LlamaEngine wrapper, streaming & prompt manager
 │   │   │   └── think_filter.dart       # DeepSeek/Qwen <think> tag stream sanitizer
@@ -124,6 +125,7 @@ lib/
 | **Code Syntax Highlighting** | `flutter_highlighter` | Language syntax highlighter & themes |
 | **Document Text Extraction** | `syncfusion_flutter_pdf` | Pure Dart PDF text extraction for local RAG |
 | **Document Picker** | `file_picker` | Native local file selection (.pdf, .txt, .md) |
+| **System Share & Export** | `share_plus` | Platform native share sheet for text and .md files |
 
 ---
 

@@ -39,6 +39,7 @@ flowchart TD
         DevSettings["DeviceSettingsTool<br/>(Wi-Fi, Bluetooth, Display, Sound Panels)"]
         AppLauncher["AppLauncherTool<br/>(Camera, YouTube, Maps, WhatsApp Launchers)"]
         DocService["DocumentService<br/>(Text Extraction, Chunking & BM25 Retrieval)"]
+        ExportService["ChatExportService<br/>(Markdown Formatter & Share Sheet)"]
     end
 
     subgraph Native_Layer ["Native Platforms & Device Hardware"]
@@ -75,6 +76,7 @@ flowchart TD
     ChatScreen -->|Context Window| ChatUtils
     ChatScreen -->|Intercept Intent| Registry
     ChatScreen -->|Attach & Grounded RAG| DocService
+    ChatScreen -->|Export & Share| ExportService
     ChatScreen -->|Fallback / General Query| AI
 
     VoiceScreen -->|Voice Input| STT

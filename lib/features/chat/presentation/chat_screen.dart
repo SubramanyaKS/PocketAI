@@ -13,6 +13,7 @@ import 'package:pocket_ai/features/chat/widgets/chat_empty_widget.dart';
 import 'package:pocket_ai/features/settings/presentation/settings_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:pocket_ai/features/chat/service/chat_export_service.dart';
 import 'package:pocket_ai/features/chat/widgets/markdown_code_builder.dart';
 import 'package:pocket_ai/features/document/models/attached_document.dart';
 import 'package:pocket_ai/features/document/service/document_service.dart';
@@ -30,6 +31,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final List<ChatMessage> _messages = [];
   final ChatDatabase _chatDatabase = ChatDatabase.instance;
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   final stt.SpeechToText _speech = stt.SpeechToText();
   List<Map<String, dynamic>> _conversations = [];
   final FlutterTts _flutterTts = FlutterTts();
@@ -98,12 +101,96 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _refreshConversations() async {
-    final conversations = await _chatDatabase.getConversations();
+    final conversations = _searchQuery.trim().isEmpty
+        ? await _chatDatabase.getConversations()
+        : await _chatDatabase.searchConversations(_searchQuery);
     if (!mounted) return;
 
     setState(() {
       _conversations = conversations;
     });
+  }
+
+  Future<void> _onSearchQueryChanged(String query) async {
+    setState(() {
+      _searchQuery = query;
+    });
+    try {
+      final results = await _chatDatabase.searchConversations(query);
+      if (!mounted) return;
+      setState(() {
+        _conversations = results;
+      });
+    } catch (error) {
+      debugPrint('Search error: $error');
+    }
+  }
+
+  Future<void> _handleExportOption(String action) async {
+    if (_messages.isEmpty) return;
+
+    String title = 'Pocket AI Conversation';
+    if (_currentConversationId != null) {
+      final matches = _conversations.where((c) => c['id'] == _currentConversationId);
+      if (matches.isNotEmpty) {
+        title = matches.first['title'] as String? ?? title;
+      }
+    }
+
+    final markdown = ChatExportService.instance.formatAsMarkdown(
+      title: title,
+      messages: _messages,
+    );
+
+    try {
+      switch (action) {
+        case 'copy_markdown':
+          await ChatExportService.instance.copyToClipboard(markdown);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text('Conversation copied as Markdown to clipboard'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+          break;
+        case 'share_text':
+          await ChatExportService.instance.shareText(
+            text: markdown,
+            subject: title,
+          );
+          break;
+        case 'share_file':
+          final file = await ChatExportService.instance.createExportFile(
+            title: title,
+            markdown: markdown,
+          );
+          await ChatExportService.instance.shareFile(
+            file: file,
+            subject: title,
+          );
+          break;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _selectConversation(int id) async {
@@ -520,6 +607,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _flutterTts.stop();
     _controller.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -542,6 +630,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onPressed: _isThinking ? null : _startNewChat,
               icon: const Icon(Icons.add_comment_outlined),
             ),
+            if (_messages.isNotEmpty)
+              PopupMenuButton<String>(
+                tooltip: 'Export & Share conversation',
+                icon: const Icon(Icons.share_outlined),
+                onSelected: _handleExportOption,
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'share_text',
+                    child: Row(
+                      children: [
+                        Icon(Icons.share_rounded, size: 20, color: Color(0xFF6366F1)),
+                        SizedBox(width: 12),
+                        Text('Share Conversation'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'copy_markdown',
+                    child: Row(
+                      children: [
+                        Icon(Icons.copy_rounded, size: 20, color: Color(0xFF10B981)),
+                        SizedBox(width: 12),
+                        Text('Copy as Markdown'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'share_file',
+                    child: Row(
+                      children: [
+                        Icon(Icons.description_outlined, size: 20, color: Color(0xFFF59E0B)),
+                        SizedBox(width: 12),
+                        Text('Export to .md File'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             IconButton(
               tooltip: 'Settings',
               onPressed: () {
@@ -645,14 +771,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       icon: const Icon(Icons.refresh),
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchQueryChanged,
+                    decoration: InputDecoration(
+                      hintText: 'Search chats & messages...',
+                      hintStyle: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: isDark ? const Color(0xFF818CF8) : const Color(0xFF6366F1),
+                      ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchQueryChanged('');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
                 const Divider(),
                 Expanded(
                   child: _conversations.isEmpty
                       ? Center(
-                          child: Text(
-                            'No conversations yet',
-                            style: TextStyle(
-                              color: isDark ? const Color(0xFF64748B) : Colors.grey,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _searchQuery.isNotEmpty
+                                      ? Icons.search_off_rounded
+                                      : Icons.chat_bubble_outline_rounded,
+                                  size: 40,
+                                  color: isDark ? const Color(0xFF64748B) : Colors.grey,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'No chats matching "$_searchQuery"'
+                                      : 'No conversations yet',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: isDark ? const Color(0xFF64748B) : Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         )
@@ -661,6 +842,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           itemBuilder: (context, index) {
                             final conversation = _conversations[index];
                             final id = conversation['id'] as int;
+                            final snippet = conversation['matching_snippet'] as String?;
                             return ListTile(
                               leading: const Icon(Icons.chat_bubble_outline),
                               title: Text(
@@ -668,6 +850,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              subtitle: (snippet != null && snippet.trim().isNotEmpty)
+                                  ? Text(
+                                      snippet.trim(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      ),
+                                    )
+                                  : null,
                               selected: id == _currentConversationId,
                               selectedTileColor: isDark
                                   ? const Color(0xFF1E293B)

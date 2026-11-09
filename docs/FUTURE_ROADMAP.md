@@ -47,18 +47,24 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 - [x] **Strict Context Grounding**: Injects top retrieved excerpts with anti-hallucination guardrails into the LLM system prompt (`buildRagSystemPrompt`).
 - [x] **Interactive Document Chip**: Shows document name, formatted size, chunk count, and one-tap detachment button above the chat input box.
 
+### 7. Conversation Search & Export
+- [x] **Full-Text Conversation Search**: Search past chat sessions by keyword in the history drawer with live query filtering and matching message snippet previews.
+- [x] **Markdown Export & Sharing**: Generate formatted Markdown (`.md`) transcripts with headers and roles (`ChatExportService`).
+- [x] **Native Share Sheet Integration**: Share transcripts directly to other Android apps (Email, WhatsApp, Notes, Drive) via `share_plus`.
+- [x] **One-Tap Clipboard Copy**: Copy formatted conversation directly to clipboard with instant feedback.
+- [x] **File Generator**: Save and share sanitized `.md` transcript files directly from the app bar.
+
 ---
 
 ## Upcoming Phases & Planned Features
 
-### Phase 7: Hardware Acceleration & Performance Tuning
+### Phase 8: Hardware Acceleration & Performance Tuning
 - **Inference Performance Controls in Settings**: User-configurable CPU generation threads (`2`, `4`, `6`, `8`) and context window size (`1K`, `2K`, `4K`).
 - **Hardware Acceleration**: Enable OpenCL / Vulkan / NPU backends on supported Android chipsets (Snapdragon / MediaTek) via `llama.cpp` compilation flags for 2x-4x tokens/second.
 - **Background Keep-Alive**: Lifecycle management so switching apps during long generations doesn't abort inference.
 
-### Phase 8: Conversation Management
-- **Conversation Search**: Search past chat sessions by keyword in the history drawer.
-- **Export & Share**: One-tap export of conversation transcripts as Markdown (`.md`) or plain text.
+### Phase 9: Multi-Document Collections & Advanced RAG
+- **Knowledge Base Collections**: Multi-document indexing and persistent local vector search.
 
 ---
 
@@ -72,5 +78,6 @@ Here is the updated roadmap and milestone status for taking **Pocket AI** from a
 | **Phase 4** | **Multi-Model Manager & Decoupled JSON Catalog** | Core AI | **Completed** |
 | **Phase 5** | **Live Mic Amplitude Equalizer & Security Enhancements** | Voice & Privacy | **Completed** |
 | **Phase 6** | **Offline Document Chat (Local RAG)** | Local Knowledge | **Completed** |
-| **Phase 7** | **Inference Controls & Hardware Acceleration** | Performance | **Next Priority** |
+| **Phase 7** | **Conversation Search & Chat Export** | Productivity | **Completed** |
+| **Phase 8** | **Inference Controls & Hardware Acceleration** | Performance | **Next Priority** |
 | **Phase 8** | **Conversation Search & Export** | Productivity | Planned |
