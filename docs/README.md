@@ -28,6 +28,36 @@ Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mo
    - Completed Milestones (Voice Assistant, Tool Registry, Multi-Model Manager, Local RAG)
    - Upcoming Engineering Phases (Hardware Acceleration, Search & Export)
 
+4. **[Contribution Guidelines](../CONTRIBUTING.md)**
+   - Developer environment setup and testing commands
+   - Step-by-step guide for adding new offline tools and models
+
+5. **[Changelog & Version History](../CHANGELOG.md)**
+   - Comprehensive release history and milestone changelog
+
+6. **[Security Policy & Zero-Cloud Threat Model](../SECURITY.md)**
+   - Local air-gapped security model and vulnerability reporting procedure
+
+7. **[App Screenshots & UI Showcase](screenshots/)**
+   - High-resolution mockups for Android and iOS
+
+---
+
+## 📸 App Preview
+
+<p align="center">
+  <img src="screenshots/arivu_screenshot_android.png" alt="Arivu AI Android Mockup" width="100%" />
+  <br>
+  <em><b>Android Showcase</b>: Real-time on-device chat with syntax-highlighted code blocks, hands-free voice assistant with 24-band mic waveform equalizer, and searchable chat history drawer.</em>
+</p>
+<br>
+
+<p align="center">
+  <img src="screenshots/arivu_screenshot_iphone.png" alt="Arivu AI iOS Mockup" width="100%" />
+  <br>
+  <em><b>iOS Showcase</b>: Offline document Q&A (Local RAG for PDF/TXT/MD), multi-model storage manager with on-device hot-swapping, and CPU hardware inference tuning in Settings.</em>
+</p>
+
 ---
 
 ## 🗂️ Clean Source Directory Structure
@@ -36,6 +66,14 @@ Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mo
 assets/
 └── models/
     └── model_catalog.json              # Decoupled single source of truth for model specifications
+
+docs/
+├── architecture.md                     # Technical architecture & sequence diagrams
+├── FUTURE_ROADMAP.md                   # Roadmap & completed milestones
+├── README.md                           # Documentation index & developer guide
+└── screenshots/                        # App mockup collages & UI previews
+    ├── arivu_screenshot_android.png
+    └── arivu_screenshot_iphone.png
 
 lib/
 ├── main.dart                           # Flutter bindings, notification & model catalog initialization

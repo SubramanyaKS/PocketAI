@@ -18,6 +18,21 @@ Arivu AI (from the Kannada word *ಅರಿವು*, meaning awareness, insight, a
 
 The app boots with an on-device language model (supporting SmolLM2-360M, SmolLM2-1.7B, Qwen2.5-0.5B, Qwen3-0.6B, and Qwen2.5-1.5B) loaded via `llamadart` / llama.cpp. On first launch, a model setup screen checks for a cached model, downloads it from Hugging Face if needed (requires internet), validates supply-chain cryptographic digests, and reports download progress. Once loaded, prompts, document search, and voice interactions are evaluated entirely on-device without internet access.
 
+## App Preview
+
+<p align="center">
+  <img src="docs/screenshots/arivu_screenshot_android.png" alt="Arivu AI Android Mockup" width="100%" />
+  <br>
+  <em><b>Android Showcase</b>: Real-time on-device chat with syntax-highlighted code blocks, hands-free voice assistant with 24-band mic waveform equalizer, and searchable chat history drawer.</em>
+</p>
+<br>
+
+<p align="center">
+  <img src="docs/screenshots/arivu_screenshot_iphone.png" alt="Arivu AI iOS Mockup" width="100%" />
+  <br>
+  <em><b>iOS Showcase</b>: Offline document Q&A (Local RAG for PDF/TXT/MD), multi-model storage manager with on-device hot-swapping, and CPU hardware inference tuning in Settings.</em>
+</p>
+
 ## Features
 
 - **Local-first AI Chat**: Real-time streaming token generation with full SQLite conversation history persistence.
@@ -125,7 +140,34 @@ The inference service uses `llamadart` for model loading and streamed generation
 
 ## Contributing
 
-Contributions are welcome. If you want to improve the app, please open an issue or submit a pull request with a clear description of the change.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on code style, testing requirements, and step-by-step instructions on implementing new offline device tools and models.
+
+## Security & Privacy Policy
+
+Arivu AI operates on a strictly air-gapped, zero-cloud architecture. For vulnerability disclosure and details on our local threat model, see [SECURITY.md](SECURITY.md).
+
+## Changelog
+
+For a complete version history and milestone breakdown, see [CHANGELOG.md](CHANGELOG.md).
+
+## Acknowledgments & Credits
+
+Arivu AI is built upon the foundational work of the open-source AI and Flutter communities:
+
+- **[llama.cpp](https://github.com/ggerganov/llama.cpp)** by [Georgi Gerganov](https://github.com/ggerganov) & contributors — for the revolutionary high-performance C++ LLM inference engine.
+- **[llamadart](https://pub.dev/packages/llamadart)** — for the clean Dart FFI bindings linking Flutter to native `llama.cpp`.
+- **Model Authors & Providers**:
+  - **[Qwen Team / Alibaba Cloud](https://huggingface.co/Qwen)** for the open-weight Qwen3 and Qwen2.5 multilingual model family.
+  - **[Hugging Face](https://huggingface.co/HuggingFaceTB)** for the compact, high-efficiency SmolLM2 mobile reasoning models.
+- **Key Flutter & Dart Libraries**:
+  - **[Syncfusion](https://pub.dev/packages/syncfusion_flutter_pdf)** for pure Dart PDF parsing enabling private, zero-cloud RAG.
+  - **[Riverpod](https://riverpod.dev/)** for robust reactive state management.
+  - **[flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications)** & **[android_intent_plus](https://pub.dev/packages/android_intent_plus)** for native system clock alarms, timers, and scheduled reminders.
+  - **[flutter_markdown_plus](https://pub.dev/packages/flutter_markdown_plus)** & **[flutter_highlighter](https://pub.dev/packages/flutter_highlighter)** for rich markdown rendering and syntax highlighting.
+  - **[speech_to_text](https://pub.dev/packages/speech_to_text)** & **[flutter_tts](https://pub.dev/packages/flutter_tts)** for on-device voice dictation and low-latency audio synthesis.
+  - **[battery_plus](https://pub.dev/packages/battery_plus)** & **[torch_light](https://pub.dev/packages/torch_light)** for offline hardware diagnostics and control.
+- **Design & Visuals**:
+  - Device mockup collages crafted with **[MockSnap](https://app.mocksnap.app/)**.
 
 ## License
 
