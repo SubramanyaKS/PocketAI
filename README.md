@@ -125,7 +125,15 @@ The inference service uses `llamadart` for model loading and streamed generation
 
 ## Contributing
 
-Contributions are welcome. If you want to improve the app, please open an issue or submit a pull request with a clear description of the change.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on code style, testing requirements, and step-by-step instructions on implementing new offline device tools and models.
+
+## Security & Privacy Policy
+
+Arivu AI operates on a strictly air-gapped, zero-cloud architecture. For vulnerability disclosure and details on our local threat model, see [SECURITY.md](SECURITY.md).
+
+## Changelog
+
+For a complete version history and milestone breakdown, see [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

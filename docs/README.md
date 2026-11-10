@@ -28,6 +28,16 @@ Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mo
    - Completed Milestones (Voice Assistant, Tool Registry, Multi-Model Manager, Local RAG)
    - Upcoming Engineering Phases (Hardware Acceleration, Search & Export)
 
+4. **[Contribution Guidelines](../CONTRIBUTING.md)**
+   - Developer environment setup and testing commands
+   - Step-by-step guide for adding new offline tools and models
+
+5. **[Changelog & Version History](../CHANGELOG.md)**
+   - Comprehensive release history and milestone changelog
+
+6. **[Security Policy & Zero-Cloud Threat Model](../SECURITY.md)**
+   - Local air-gapped security model and vulnerability reporting procedure
+
 ---
 
 ## 🗂️ Clean Source Directory Structure
