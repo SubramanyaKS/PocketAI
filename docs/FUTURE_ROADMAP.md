@@ -9,7 +9,7 @@ Here is the updated roadmap and milestone status for taking **Arivu AI** from a 
 ### 1. Offline LLM Inference & Multi-Model Engine
 - [x] **Local GGUF Inference**: On-device 4-thread CPU execution via `llamadart` (`llama.cpp`) with 2,048-token context window.
 - [x] **Supply-Chain Integrity**: GGUF binary magic header validation (`0x47, 0x47, 0x55, 0x46`) and streaming SHA-256 cryptographic verification.
-- [x] **Multi-Model Catalog**: Curated model specs (SmolLM2-360M, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth.
+- [x] **Multi-Model Catalog**: Curated model specs (SmolLM2-360M, SmolLM2-1.7B, Qwen2.5-0.5B, Qwen3-0.6B, Qwen2.5-1.5B) decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth.
 - [x] **RAM Hot-Swapping & Disk Management**: Switch active model dynamically in RAM with safe cleanup, and delete inactive models from disk in Settings to reclaim phone storage.
 
 ### 2. Full-Duplex Voice Assistant

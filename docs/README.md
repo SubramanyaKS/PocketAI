@@ -2,6 +2,11 @@
 
 Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mobile AI assistant built with Flutter and embedded `llama.cpp` (`llamadart`).
 
+> [!IMPORTANT]
+> **Internet Connectivity Requirement**:
+> An active internet connection is required **only once** to download your chosen model weights from Hugging Face CDN (first launch or when downloading an alternate model from Settings).
+> Once downloaded, the model is cached in private local app storage, and Arivu AI operates **100% offline** — all text generation, voice assistant loops, local document Q&A (RAG), alarms, reminders, calculator, and device tools run locally with zero network calls.
+
 ---
 
 ## 📚 Documentation Index
@@ -112,7 +117,7 @@ lib/
 |---|---|---|
 | **Language & Framework** | Dart 3.10+ / Flutter 3.38+ | Cross-platform core framework |
 | **Local Model Engine** | `llamadart` (`llama.cpp`) | On-device 4-thread CPU GGUF inference |
-| **Model Download & Cache** | `dio` + `path_provider` | Download with progress & local file storage |
+| **Model Download & Cache** | `dio` + `path_provider` | Initial one-time download with progress (internet required) & local file storage |
 | **State Management** | `flutter_riverpod` | Unified theme state management |
 | **Persistence** | `sqflite` + `path` | Local SQLite database (`chat_history.db`) |
 | **Speech-to-Text** | `speech_to_text` | Real-time speech dictation and transcription |

@@ -115,15 +115,18 @@ flowchart TD
 
 When Arivu AI launches, it ensures valid weights are present locally before presenting chat or voice interfaces.
 
+> [!NOTE]
+> **Network Boundary**: Active internet connectivity is required exclusively when downloading model weights from the Hugging Face CDN (first launch or downloading alternate models from the catalog). Once the GGUF file is validated and stored on the local filesystem, all verification, memory allocation, and inference operations are strictly offline.
+
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
-    participant App as PocketAiApp
+    participant App as ArivuAiApp
     participant Setup as ModelSetupScreen
     participant Service as LocalAiService
     participant FS as Local FileSystem
-    participant HF as Hugging Face CDN
+    participant HF as Hugging Face CDN (Internet Required)
     participant Engine as LlamaEngine (llama.cpp)
     participant Home as HomeScreen
 
@@ -132,11 +135,11 @@ sequenceDiagram
     Setup->>Service: loadModel(onDownloadProgress)
     Service->>FS: Check models/Qwen3-0.6B-Q8_0.gguf
     
-    alt Model Exists & Has GGUF Magic Header
+    alt Model Exists & Has GGUF Magic Header (Offline)
         FS-->>Service: Valid GGUF Header Verified (0x47, 0x47, 0x55, 0x46)
-    else Cache Miss or Corrupt Header
+    else Cache Miss or Corrupt Header (Requires Internet)
         Service->>FS: Remove incomplete artifacts
-        Service->>HF: Download GGUF via Dio (Qwen3-0.6B-Q8_0.gguf)
+        Service->>HF: Download GGUF via Dio (Qwen3-0.6B-Q8_0.gguf) [Internet]
         HF-->>Setup: Emit progress percentage (0-100%)
         HF-->>Service: Complete download to .part file
         Service->>Service: Validate GGUF header on .part
@@ -144,6 +147,7 @@ sequenceDiagram
         Service->>FS: Atomic rename .part -> final .gguf
     end
 
+    Note over Service,Engine: From this point onward, operation is 100% offline
     Service->>Engine: setModel(ModelSource.path, contextSize: 2048, threads: 4)
     Engine-->>Service: Native Model Loaded
     Service-->>Setup: _isLoaded = true
@@ -295,6 +299,7 @@ erDiagram
 
 | Platform Feature | Android Permission | Fallback / Hardware Guard |
 |---|---|---|
+| **Model Weight Download** | `android.permission.INTERNET` | Strictly utilized for the initial GGUF binary download (or catalog updates) from Hugging Face CDN via Dio. Never invoked during inference or chat turns. |
 | **Audio Dictation** | `android.permission.RECORD_AUDIO` | Checks `speech.initialize()` availability |
 | **Scheduled Reminders** | `android.permission.POST_NOTIFICATIONS` | `requestNotificationsPermission()` prompt on Android 13+ |
 | **Exact Alarms** | `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM` | Auto-downgrades from `alarmClock` to `exactAllowWhileIdle` |
@@ -343,6 +348,7 @@ flowchart TD
 4. **Permanent One-Tap Data Wipe**: The Settings screen provides an atomic `ChatDatabase.clearAllChatHistory()` action that permanently deletes all stored messages and conversations with confirmation guards.
 5. **Supply Chain Verification**: Model files downloaded from Hugging Face are verified with binary GGUF magic bytes (`0x47, 0x47, 0x55, 0x46`) and SHA-256 cryptographic checksums before memory loading.
 6. **Decoupled Model Catalog**: Model configurations are decoupled into [`assets/models/model_catalog.json`](../assets/models/model_catalog.json) as the single source of truth, loaded asynchronously at application boot.
+7. **Complete Network Isolation During Inference**: The network interface is used solely for initial GGUF model weight retrieval from Hugging Face CDN. Once weights are saved to internal storage, the LLM, RAG document parser, audio synthesizer, and device tools execute with 100% air-gapped offline capability.
 
 ---
 
