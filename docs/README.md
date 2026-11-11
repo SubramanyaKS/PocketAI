@@ -46,14 +46,14 @@ Welcome to the Arivu AI developer documentation. Arivu AI is an offline-first mo
 ## 📸 App Preview
 
 <p align="center">
-  <img src="screenshots/arivu_screenshot_android.png" alt="Arivu AI Android Mockup" width="100%" />
+  <img src="screenshots/arivu_screenshot_android.webp" alt="Arivu AI Android Mockup" width="100%" />
   <br>
   <em><b>Android Showcase</b>: Real-time on-device chat with syntax-highlighted code blocks, hands-free voice assistant with 24-band mic waveform equalizer, and searchable chat history drawer.</em>
 </p>
 <br>
 
 <p align="center">
-  <img src="screenshots/arivu_screenshot_iphone.png" alt="Arivu AI iOS Mockup" width="100%" />
+  <img src="screenshots/arivu_screenshot_iphone.webp" alt="Arivu AI iOS Mockup" width="100%" />
   <br>
   <em><b>iOS Showcase</b>: Offline document Q&A (Local RAG for PDF/TXT/MD), multi-model storage manager with on-device hot-swapping, and CPU hardware inference tuning in Settings.</em>
 </p>
