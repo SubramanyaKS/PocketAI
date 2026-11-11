@@ -7,6 +7,12 @@
   <img src="https://img.shields.io/badge/Local-AI-6C63FF" alt="Local AI" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/arivu_screenshot.webp" alt="Arivu AI Android Mockup" width="100%" />
+  <br>
+</p>
+
+
 Arivu AI (from the Kannada word *ಅರಿವು*, meaning awareness, insight, and consciousness) is a Flutter-based local AI assistant that runs quantized GGUF language models directly on mobile CPU with zero cloud dependencies and 100% offline privacy.
 
 > [!IMPORTANT]
@@ -17,21 +23,6 @@ Arivu AI (from the Kannada word *ಅರಿವು*, meaning awareness, insight, a
 ## Overview
 
 The app boots with an on-device language model (supporting SmolLM2-360M, SmolLM2-1.7B, Qwen2.5-0.5B, Qwen3-0.6B, and Qwen2.5-1.5B) loaded via `llamadart` / llama.cpp. On first launch, a model setup screen checks for a cached model, downloads it from Hugging Face if needed (requires internet), validates supply-chain cryptographic digests, and reports download progress. Once loaded, prompts, document search, and voice interactions are evaluated entirely on-device without internet access.
-
-## App Preview
-
-<p align="center">
-  <img src="docs/screenshots/arivu_screenshot_android.png" alt="Arivu AI Android Mockup" width="100%" />
-  <br>
-  <em><b>Android Showcase</b>: Real-time on-device chat with syntax-highlighted code blocks, hands-free voice assistant with 24-band mic waveform equalizer, and searchable chat history drawer.</em>
-</p>
-<br>
-
-<p align="center">
-  <img src="docs/screenshots/arivu_screenshot_iphone.png" alt="Arivu AI iOS Mockup" width="100%" />
-  <br>
-  <em><b>iOS Showcase</b>: Offline document Q&A (Local RAG for PDF/TXT/MD), multi-model storage manager with on-device hot-swapping, and CPU hardware inference tuning in Settings.</em>
-</p>
 
 ## Features
 
