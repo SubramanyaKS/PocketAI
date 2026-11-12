@@ -55,33 +55,36 @@ class ReminderTool implements PocketTool {
 
     int delayMinutes = 0;
 
-    // Pattern A: "remind me to [action] in [X] minutes/hours"
-    final regexA = RegExp(
-      r'remind\s+(?:me\s+)?(?:to\s+)?(.+?)\s+(?:in|after)\s+(\d+)\s*(minute|min|hour|hr)s?',
-      caseSensitive: false,
-    );
-
     // Pattern B: "remind me in [X] minutes/hours to [action]"
     final regexB = RegExp(
       r'remind\s+(?:me\s+)?(?:in|after)\s+(\d+)\s*(minute|min|hour|hr)s?\s+(?:to\s+)?(.+)',
       caseSensitive: false,
     );
 
+    // Pattern A: "remind me to [action] in [X] minutes/hours"
+    final regexA = RegExp(
+      r'remind\s+(?:me\s+)?(?:to\s+)?(.+?)\s+(?:in|after)\s+(\d+)\s*(minute|min|hour|hr)s?',
+      caseSensitive: false,
+    );
+
     String task = '';
 
-    final matchA = regexA.firstMatch(text);
-    if (matchA != null) {
-      task = matchA.group(1)?.trim() ?? '';
-      final num = int.tryParse(matchA.group(2) ?? '0') ?? 0;
-      final unit = matchA.group(3)?.toLowerCase() ?? 'minute';
+    final matchB = regexB.firstMatch(text);
+    if (matchB != null) {
+      final num = int.tryParse(matchB.group(1) ?? '0') ?? 0;
+      final unit = matchB.group(2)?.toLowerCase() ?? 'minute';
       delayMinutes = unit.startsWith('h') ? num * 60 : num;
+      task = matchB.group(3)?.trim() ?? '';
     } else {
-      final matchB = regexB.firstMatch(text);
-      if (matchB != null) {
-        final num = int.tryParse(matchB.group(1) ?? '0') ?? 0;
-        final unit = matchB.group(2)?.toLowerCase() ?? 'minute';
+      final matchA = regexA.firstMatch(text);
+      if (matchA != null) {
+        task = matchA.group(1)?.trim() ?? '';
+        if (task.toLowerCase() == 'me') {
+          task = '';
+        }
+        final num = int.tryParse(matchA.group(2) ?? '0') ?? 0;
+        final unit = matchA.group(3)?.toLowerCase() ?? 'minute';
         delayMinutes = unit.startsWith('h') ? num * 60 : num;
-        task = matchB.group(3)?.trim() ?? '';
       }
     }
 
