@@ -154,7 +154,9 @@ class _ManageModelsScreenState extends State<ManageModelsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to switch model: $e'),
+            content: Text(
+              'Failed to switch model: ${e.toString().replaceAll('Exception: ', '').replaceAll('StateError: ', '')}',
+            ),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -206,7 +208,9 @@ class _ManageModelsScreenState extends State<ManageModelsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Download failed: $e'),
+            content: Text(
+              'Download failed: ${e.toString().replaceAll('Exception: ', '').replaceAll('StateError: ', '')}',
+            ),
             backgroundColor: Colors.redAccent,
           ),
         );

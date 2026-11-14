@@ -493,7 +493,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (responseBuffer.toString().trim().isEmpty) {
         responseBuffer.clear();
         responseBuffer.write(
-          'Sorry, I could not generate a response. Please try again.',
+          'The AI returned an empty response. Please try rephrasing your question.',
         );
       }
     } catch (error, stackTrace) {
@@ -502,9 +502,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       if (responseBuffer.toString().trim().isEmpty) {
         responseBuffer.clear();
-        responseBuffer.write(
-          'Sorry, I could not generate a response. Please try again.',
-        );
+        responseBuffer.write(_formatInferenceErrorMessage(error));
       }
     }
 
@@ -546,6 +544,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  String _formatInferenceErrorMessage(Object error) {
+    final str = error.toString().toLowerCase();
+
+    if (error is OutOfMemoryError ||
+        str.contains('out of memory') ||
+        str.contains('bad_alloc') ||
+        str.contains('cannot allocate') ||
+        str.contains('oom')) {
+      return '⚠️ **Device Memory Full**: The phone ran out of RAM while generating tokens.\n\n'
+          '**How to resolve:**\n'
+          '• Switch to a lighter model (such as *SmolLM2-360M* or *Qwen2.5-0.5B*) in **Settings ➔ Manage Models**.\n'
+          '• Reduce Context Window Size (e.g. 1024) in **Settings ➔ Inference Parameters**.\n'
+          '• Close unused background apps to free up system memory.';
+    }
+
+    if (str.contains('context') ||
+        str.contains('n_ctx') ||
+        str.contains('token limit') ||
+        str.contains('exceeded')) {
+      return '⚠️ **Context Window Exceeded**: The conversation or attached document exceeds the active context window limit.\n\n'
+          '**How to resolve:**\n'
+          '• Start a fresh conversation using the **+** button.\n'
+          '• Or increase the Context Size (up to 4096) in **Settings ➔ Inference Parameters**.';
+    }
+
+    if (str.contains('model has not been loaded') ||
+        str.contains('not loaded') ||
+        str.contains('null model')) {
+      return '⚠️ **Model Not Ready**: The AI model is not loaded in memory.\n\n'
+          'Please visit **Settings ➔ Manage Models** to re-activate your model, or restart the app.';
+    }
+
+    return '⚠️ **Inference Issue**: An error occurred while generating the response.\n\n'
+        'Details: ${error.toString().replaceAll('Exception: ', '').replaceAll('StateError: ', '')}\n\n'
+        'Please try asking again or starting a new chat.';
+  }
+
   void _listen() async {
     if (!isListen) {
       bool available = await _speech.initialize(
@@ -563,6 +598,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onResult: (val) => setState(() {
             _controller.text = val.recognizedWords;
           }),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Microphone access is unavailable or permission denied. Please enable microphone permission in device Settings.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } else {

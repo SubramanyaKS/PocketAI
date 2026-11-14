@@ -97,8 +97,34 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
       return 'The model download timed out. Check your connection and try again.';
     }
 
-    return 'The model could not be downloaded or loaded. Check your connection '
-        'and available storage, then try again.';
+    final str = error.toString().toLowerCase();
+
+    if (str.contains('sha-256') || str.contains('integrity')) {
+      return 'Security Verification Failed: The downloaded model file did not match its '
+          'cryptographic signature (download was corrupted or interrupted). Tap "Try again" to re-download.';
+    }
+
+    if (error is FileSystemException ||
+        str.contains('no space') ||
+        str.contains('enospc') ||
+        str.contains('storage') ||
+        str.contains('disk')) {
+      return 'Insufficient Storage: Your device ran out of free disk space during download. '
+          'Please free up at least 1.5 GB on your device and try again.';
+    }
+
+    if (str.contains('not a valid gguf')) {
+      return 'Invalid Model Format: The downloaded file is not a valid GGUF model. '
+          'Tap "Try again" to re-download.';
+    }
+
+    if (str.contains('memory') || str.contains('bad_alloc')) {
+      return 'Device Memory Full: Insufficient RAM to load this model into memory. '
+          'Close other background apps and tap "Try again".';
+    }
+
+    return 'The model could not be loaded: ${error.toString().replaceAll('Exception: ', '').replaceAll('StateError: ', '')}. '
+        'Check your connection and available storage, then try again.';
   }
 
   @override

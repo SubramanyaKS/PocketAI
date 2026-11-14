@@ -195,7 +195,14 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
     if (!available) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition is unavailable.')),
+        const SnackBar(
+          content: Text(
+            'Microphone access is unavailable or permission denied. '
+            'Please check microphone permission in device Settings.',
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -405,9 +412,20 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen>
       debugPrint('Voice AI error: $e');
       if (!mounted || runId != _speechRunId) return;
 
+      final errStr = e.toString().toLowerCase();
+      String userError;
+      if (errStr.contains('memory') || errStr.contains('alloc') || errStr.contains('oom')) {
+        userError = 'Device memory full. Please switch to a lighter model in Settings.';
+      } else if (errStr.contains('not loaded')) {
+        userError = 'The AI model is not loaded in memory. Please re-open the app.';
+      } else {
+        userError = 'Unable to generate response. Please tap to speak again.';
+      }
+
       setState(() {
         _state = AssistantState.idle;
-        _statusMessage = 'Error generating response';
+        _statusMessage = 'Generation error';
+        _aiResponse = userError;
       });
     }
   }
